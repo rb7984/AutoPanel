@@ -1,2 +1,2 @@
 # AutoPanel
-GH script 
+GH script for paneling a surface
