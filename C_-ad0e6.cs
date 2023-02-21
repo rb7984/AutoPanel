@@ -55,14 +55,15 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
   /// they will have a default value.
   /// </summary>
   #region Runscript
-  private void RunScript(DataTree<object> x, List<Polyline> y, ref object A, ref object B, ref object C)
+  private void RunScript(DataTree<object> x, List<Polyline> y, ref object pl, ref object names, ref object archive, ref object freeTag)
   {
     grid = new Grid(x, y);
     panelC41s = grid.panels;
 
-    A = grid.Plines(panelC41s);
-    B = grid.FreeTag(panelC41s);
-    C = Archive(panelC41s);
+    pl = grid.Plines(panelC41s);
+    names = grid.NameTags(panelC41s);
+    archive = Archive(panelC41s);
+    freeTag = grid.FreeTag(panelC41s);
   }
   #endregion
   #region Additional
@@ -70,8 +71,6 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
   // fields
   public Grid grid;
   public List<PanelC41> panelC41s;
-  public List<Polyline> plines;
-  public List<bool> freeTag;
 
   public List<string> archive;
 
@@ -179,11 +178,19 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
       return polylines;
     }
+
     public List<bool> FreeTag(List<PanelC41> panels)
     {
       List<bool> freeTag = panels.Select(i => i.crossed).ToList();
 
       return freeTag;
+    }
+
+    public List<string> NameTags(List<PanelC41> panels)
+    {
+      List<string> nameTags = panels.Select(i => i.name).ToList();
+
+      return nameTags;
     }
   }
 
