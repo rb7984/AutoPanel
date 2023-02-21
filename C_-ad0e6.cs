@@ -78,6 +78,8 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
   {
     public DataTree<object> param;
     List<Polyline> obs;
+
+    // tutte le coordinate delle fughe in X e Y
     public List<double> xCoordinates;
     public List<double> yCoordinates;
 
@@ -101,9 +103,10 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       List<double> xtmp = new List<double>();
       List<double> ytmp = new List<double>();
 
-      for (int i = 2; i < param.BranchCount; i++)
+      // param.BranchCount - 1 perch� l'ultimo branch sono i bordi esterni
+      for (int i = 2; i < param.BranchCount - 1; i++)
       {
-        int fuga = (int) Convert.ToInt64(param.Branch(i)[0].ToString().Split('-')[2].ToString().Split('.')[0]);
+        int fuga = (int)Convert.ToInt64(param.Branch(i)[0].ToString().Split('-')[2].ToString().Split('.')[0]);
         string dir = param.Branch(i)[0].ToString().Split('-')[1];
 
         List<double> tmp = new List<double>();
@@ -112,7 +115,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         {
           for (int j = 1; j < param.Branch(i).Count; j++)
           {
-            PolylineCurve tmpPl = (PolylineCurve) param.Branch(i)[j];
+            PolylineCurve tmpPl = (PolylineCurve)param.Branch(i)[j];
             tmp.Add(tmpPl.PointAt(0).Y - fuga);
             tmp.Add(tmpPl.PointAt(0).Y + fuga);
           }
@@ -124,7 +127,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         {
           for (int j = 1; j < param.Branch(i).Count; j++)
           {
-            PolylineCurve tmpPl = (PolylineCurve) param.Branch(i)[j];
+            PolylineCurve tmpPl = (PolylineCurve)param.Branch(i)[j];
             tmp.Add(tmpPl.PointAt(0).X - fuga);
             tmp.Add(tmpPl.PointAt(0).X + fuga);
           }
@@ -139,12 +142,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       xCoordinates = xtmp;
       yCoordinates = ytmp;
 
-      xCoordinates.RemoveAt(xCoordinates.Count - 1);
-      yCoordinates.RemoveAt(yCoordinates.Count - 1);
-      xCoordinates.RemoveAt(0);
-      yCoordinates.RemoveAt(0);
-
-      //sortedList = pts.OrderBy(point => point.X).ToList();
+      Borders(param);
     }
 
     public List<PanelC41> Panels(List<double> xCoordinates, List<double> yCoordinates)
@@ -191,6 +189,27 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       List<string> nameTags = panels.Select(i => i.name).ToList();
 
       return nameTags;
+    }
+
+    void Borders(DataTree<object> param)
+    {
+      int[] fughe = param.Branch(param.BranchCount - 1)[0].ToString().Split('-')[2].Split('.').Select(element => Convert.ToInt32(element)).ToArray();
+
+      PolylineCurve curve = (PolylineCurve)param.Branch(param.BranchCount - 1)[1];
+
+      double[] x = new double[4];
+      double[] y = new double[4];
+
+      for (int i = 0; i < 4; i++)
+      {
+        x[i] = curve.Point(i).X;
+        y[i] = curve.Point(i).Y;
+      }
+
+      yCoordinates.Insert(0, Math.Round(y.Min() + fughe[0]));
+      xCoordinates.Insert(xCoordinates.Count, Math.Round(x.Max() - fughe[1]));
+      yCoordinates.Insert(yCoordinates.Count, Math.Round(y.Max() - fughe[2]));
+      xCoordinates.Insert(0, Math.Round(x.Min() + fughe[3]));
     }
   }
 
