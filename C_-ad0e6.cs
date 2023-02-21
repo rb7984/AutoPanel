@@ -12,6 +12,8 @@ using Grasshopper.Kernel.Types;
 
 using Rhino.Geometry.Intersect;
 using System.Linq;
+using Rhino.FileIO;
+
 
 /// <summary>
 /// This class will be instantiated on demand by the Script component.
@@ -53,11 +55,14 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
   /// they will have a default value.
   /// </summary>
   #region Runscript
-  private void RunScript(DataTree<object> x, object y, ref object A)
+  private void RunScript(DataTree<object> x, List<Polyline> y, ref object A, ref object B, ref object C)
   {
-    grid = new Grid(x);
+    grid = new Grid(x, y);
     panelC41s = grid.panels;
 
+    A = grid.Plines(panelC41s);
+    B = grid.FreeTag(panelC41s);
+    C = Archive(panelC41s);
   }
   #endregion
   #region Additional
@@ -65,19 +70,29 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
   // fields
   public Grid grid;
   public List<PanelC41> panelC41s;
+  public List<Polyline> plines;
+  public List<bool> freeTag;
+
+  public List<string> archive;
 
   public class Grid
   {
     public DataTree<object> param;
+    List<Polyline> obs;
     public List<double> xCoordinates;
     public List<double> yCoordinates;
 
     public List<PanelC41> panels;
+    public List<Point3d> pts;
 
-    public Grid(DataTree<object> x)
+    public Grid(DataTree<object> x, List<Polyline> y)
     {
       param = x;
+      obs = y;
+
       OrderLines(param);
+
+      pts = new List<Point3d>();
 
       panels = Panels(xCoordinates, yCoordinates);
     }
@@ -89,7 +104,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
       for (int i = 2; i < param.BranchCount; i++)
       {
-        int fuga = (int)Convert.ToInt64(param.Branch(i)[0].ToString().Split('-')[2].ToString().Split('.')[0]);
+        int fuga = (int) Convert.ToInt64(param.Branch(i)[0].ToString().Split('-')[2].ToString().Split('.')[0]);
         string dir = param.Branch(i)[0].ToString().Split('-')[1];
 
         List<double> tmp = new List<double>();
@@ -98,7 +113,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         {
           for (int j = 1; j < param.Branch(i).Count; j++)
           {
-            Polyline tmpPl = (Polyline)param.Branch(i)[j];
+            PolylineCurve tmpPl = (PolylineCurve) param.Branch(i)[j];
             tmp.Add(tmpPl.PointAt(0).Y - fuga);
             tmp.Add(tmpPl.PointAt(0).Y + fuga);
           }
@@ -110,7 +125,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         {
           for (int j = 1; j < param.Branch(i).Count; j++)
           {
-            Polyline tmpPl = (Polyline)param.Branch(i)[j];
+            PolylineCurve tmpPl = (PolylineCurve) param.Branch(i)[j];
             tmp.Add(tmpPl.PointAt(0).X - fuga);
             tmp.Add(tmpPl.PointAt(0).X + fuga);
           }
@@ -136,24 +151,39 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
     public List<PanelC41> Panels(List<double> xCoordinates, List<double> yCoordinates)
     {
       List<PanelC41> panels = new List<PanelC41>();
-      for (int i = 0; i < yCoordinates.Count; i= i+2)
-      {
-        for (int j = 0; j < xCoordinates.Count ;j = j + 2)
-        {
-          List<Point3d> points = new List<Point3d>
-          {
-            new Point3d(xCoordinates[j], yCoordinates[i],0),
-            new Point3d(xCoordinates[j+1], yCoordinates[i],0),
-            new Point3d(xCoordinates[j+1], yCoordinates[i+1],0),
-            new Point3d(xCoordinates[j], yCoordinates[i + 1],0),
-            new Point3d(xCoordinates[j], yCoordinates[i],0)
-          };
 
-          panels.Add(new PanelC41(points));
+      for (int i = 0; i < yCoordinates.Count; i += 2)
+      {
+        for (int j = 0; j < xCoordinates.Count; j += 2)
+        {
+          var points = new List<Point3d>
+            {
+              new Point3d(xCoordinates[j], yCoordinates[i], 0),
+              new Point3d(xCoordinates[j + 1], yCoordinates[i], 0),
+              new Point3d(xCoordinates[j + 1], yCoordinates[i + 1], 0),
+              new Point3d(xCoordinates[j], yCoordinates[i + 1], 0),
+              new Point3d(xCoordinates[j], yCoordinates[i], 0)
+              };
+
+          pts.AddRange(points.GetRange(0, 4));
+          panels.Add(new PanelC41(points, obs));
         }
       }
 
       return panels;
+    }
+
+    public List<Polyline> Plines(List<PanelC41> panels)
+    {
+      List<Polyline> polylines = panels.Select(i => i.pl).ToList();
+
+      return polylines;
+    }
+    public List<bool> FreeTag(List<PanelC41> panels)
+    {
+      List<bool> freeTag = panels.Select(i => i.crossed).ToList();
+
+      return freeTag;
     }
   }
 
@@ -166,42 +196,62 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
     public double borderDown;
     public double hookUp;
     public double hookDown;
+
     public Polyline pl;
+    public bool crossed;
+    public string name;
 
     //Constructor
-    public PanelC41(double width, double height, double borderUp, double borderDown, double hookUp, double hookDown, Polyline pl)
+    public PanelC41(List<Point3d> list, List<Polyline> obs)
     {
-      this.width = width;
-      this.height = height;
-      this.borderUp = borderUp;
-      this.borderDown = borderDown;
-      this.hookUp = hookUp;
-      this.hookDown = hookDown;
-      this.pl = pl;
-    }
-    public PanelC41(Polyline pl)
-    {
-      width = 0;
-      height = 0;
-      borderUp = 0;
-      borderDown = 0;
-      hookUp = 0;
-      hookDown = 0;
-      this.pl = pl;
-    }
-    public PanelC41(List<Point3d> list)
-    {
-      width = 0;
-      height = 0;
       borderUp = 0;
       borderDown = 0;
       hookUp = 0;
       hookDown = 0;
 
       pl = new Polyline(list);
+      Intercept(obs);
+      Name();
     }
 
+    public void Intercept(List<Polyline> obs)
+    {
+      int a = 0;
+
+      for (int i = 0; i < obs.Count; i++)
+      {
+        a += Intersection.CurveCurve(pl.ToPolylineCurve(), obs[i].ToPolylineCurve(), 0.1, 0.1).Count;
+      }
+
+      if (a == 0) crossed = false;
+      else crossed = true;
+    }
+
+    public void Name()
+    {
+      width = Math.Round(pl[0].DistanceTo(pl[1]));
+      height = Math.Round(pl[1].DistanceTo(pl[2]));
+      name = width.ToString() + '-' + height.ToString();
+    }
   }
 
+  public List<string> Archive(List<PanelC41> panelC41s)
+  {
+    List<string> list;
+    var orderedPanels = panelC41s.OrderBy(panelC41 => panelC41.width).ThenBy(panelC41 => panelC41.height);
+
+    list = orderedPanels.Select(x => x.name).ToList();
+
+    List<string> arc = new List<string> { list[0] };
+    for (int i = 1; i < list.Count; i++)
+    {
+      if (list[i] != list[i - 1])
+      {
+        arc.Add(list[i]);
+      }
+    }
+
+    return arc;
+  }
   #endregion
 }
