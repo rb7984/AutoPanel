@@ -13,6 +13,7 @@ using Grasshopper.Kernel.Types;
 using Rhino.Geometry.Intersect;
 using System.Linq;
 using Rhino.FileIO;
+using System.Runtime.Remoting.Messaging;
 
 
 /// <summary>
@@ -55,12 +56,13 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
   /// they will have a default value.
   /// </summary>
   #region Runscript
-  private void RunScript(DataTree<object> x, List<Polyline> y, ref object pl, ref object names, ref object archive, ref object freeTag)
+  private void RunScript(DataTree<object> x, DataTree<object> y, ref object pl, ref object layerNames, ref object names, ref object archive, ref object freeTag, ref object A)
   {
     grid = new Grid(x, y);
     panelC41s = grid.panels;
-
+    
     pl = grid.Plines(panelC41s);
+    layerNames = grid.LayerNameTags(panelC41s);
     names = grid.NameTags(panelC41s);
     archive = Archive(panelC41s);
     freeTag = grid.FreeTag(panelC41s);
@@ -77,7 +79,9 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
   public class Grid
   {
     public DataTree<object> param;
-    List<Polyline> obs;
+    public DataTree<object> obs;
+    public List<Polyline> windows;
+    public List<Polyline> detachLines;
 
     // tutte le coordinate delle fughe in X e Y
     public List<double> xCoordinates;
@@ -86,10 +90,13 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
     public List<PanelC41> panels;
     public List<Point3d> pts;
 
-    public Grid(DataTree<object> x, List<Polyline> y)
+    public Grid(DataTree<object> x, DataTree<object> y)
     {
       param = x;
       obs = y;
+ 
+      windows = y.Branch(0).Select(pl => (PolylineCurve)pl).ToList().Select(pl => pl.ToPolyline()).ToList();
+      detachLines = y.Branch(1).Select(pl => (PolylineCurve)pl).ToList().Select(pl => pl.ToPolyline()).ToList();
 
       OrderLines(param);
 
@@ -113,6 +120,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
         if (dir == "h")
         {
+          // start at j = 1 perchè la prima linea è il nome del layer 
           for (int j = 1; j < param.Branch(i).Count; j++)
           {
             PolylineCurve tmpPl = (PolylineCurve)param.Branch(i)[j];
@@ -125,6 +133,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
         else if (dir == "v")
         {
+          // start at j = 1 perchè la prima linea è il nome del layer
           for (int j = 1; j < param.Branch(i).Count; j++)
           {
             PolylineCurve tmpPl = (PolylineCurve)param.Branch(i)[j];
@@ -163,7 +172,9 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
               };
 
           pts.AddRange(points.GetRange(0, 4));
-          panels.Add(new PanelC41(points, obs));
+
+          PanelC41 tmpPanel = new PanelC41(points, windows, detachLines);
+          if (!tmpPanel.crossed) panels.Add(tmpPanel);
         }
       }
 
@@ -184,11 +195,22 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       return freeTag;
     }
 
-    public List<string> NameTags(List<PanelC41> panels)
+    public List<string> LayerNameTags(List<PanelC41> panels)
     {
       List<string> nameTags = panels.Select(i => i.name).ToList();
 
       return nameTags;
+    }
+
+    public List<string> NameTags(List<PanelC41> panels)
+    {
+      List<string> names = panels.Select(i => i.type).ToList();
+      for (int i = 0; i < panels.Count; i++)
+      {
+        names[i] = names[i] + " - " + panels[i].name;
+      }
+
+      return names;
     }
 
     void Borders(DataTree<object> param)
@@ -225,32 +247,49 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
     public Polyline pl;
     public bool crossed;
+    public string type;
     public string name;
 
     //Constructor
-    public PanelC41(List<Point3d> list, List<Polyline> obs)
+    public PanelC41(List<Point3d> list, List<Polyline> obs, List<Polyline> det)
     {
-      borderUp = 0;
-      borderDown = 0;
-      hookUp = 0;
-      hookDown = 0;
+      borderUp = 1;
+      borderDown = 2;
+      hookUp = 3;
+      hookDown = 4;
+      type = "A";
+
+      crossed = false;
 
       pl = new Polyline(list);
-      Intercept(obs);
+      int i = Intercept(obs);
+
+      if (i >= 0)
+      {
+        crossed = InterceptedPanel(obs, i, 8);
+      }
+
       Name();
+      Detached(det);
     }
 
-    public void Intercept(List<Polyline> obs)
+    public int Intercept(List<Polyline> obs)
     {
-      int a = 0;
+      // ora non funziona per ostacoli multipli che intersecano oggetti
+
+      int counter = 0;
+      int b = -1;
 
       for (int i = 0; i < obs.Count; i++)
       {
-        a += Intersection.CurveCurve(pl.ToPolylineCurve(), obs[i].ToPolylineCurve(), 0.1, 0.1).Count;
+        var tmp = Intersection.CurveCurve(pl.ToPolylineCurve(), obs[i].ToPolylineCurve(), 0.1, 0.1).Count;
+        counter += tmp;
+        if (tmp != 0) b = i;
       }
 
-      if (a == 0) crossed = false;
+      if (counter == 0) crossed = false;
       else crossed = true;
+      return b;
     }
 
     public void Name()
@@ -258,6 +297,71 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       width = Math.Round(pl[0].DistanceTo(pl[1]));
       height = Math.Round(pl[1].DistanceTo(pl[2]));
       name = width.ToString() + '-' + height.ToString();
+    }
+
+    public bool InterceptedPanel(List<Polyline> obs, int i, double fuga)
+    {
+      // Funziona solo per finestre centrate sui pannelli
+      // Viene considerata solo la Y quindi
+
+      double[] yObs = new double[] { obs[i][0].Y, obs[i][1].Y, obs[i][2].Y };
+      double[] y = new double[] { pl[0].Y, pl[1].Y, pl[2].Y };
+
+      if (yObs.Max() >= y.Max() && yObs.Min() <= y.Min())
+      {
+        return true;
+      }
+      else if (y.Max() > yObs.Max())
+      {
+        double newY = yObs.Max();
+        List<Point3d> tmp = new List<Point3d>()
+        {
+          new Point3d(pl[0].X, newY + fuga,0),
+          new Point3d(pl[1].X, newY+ fuga,0),
+          new Point3d(pl[2]),
+          new Point3d(pl[3]),
+          new Point3d(pl[4].X, newY+ fuga,0),
+        };
+
+        pl = new Polyline(tmp);
+        return false;
+      }
+      else if (y.Min() < yObs.Min())
+      {
+        double newY = yObs.Min();
+        List<Point3d> tmp = new List<Point3d>()
+        {
+          new Point3d(pl[0]),
+          new Point3d(pl[1]),
+          new Point3d(pl[2].X, newY - fuga,0),
+          new Point3d(pl[3].X, newY - fuga,0),
+          new Point3d(pl[4]),
+        };
+
+        pl = new Polyline(tmp);
+
+        return false;
+      }
+
+      else { return false; }
+    }
+
+    public void Detached(List<Polyline> det)
+    {
+      // Per ogni Line di intersezione 
+
+      int counter = 0;
+
+      for (int i = 0; i < det.Count; i++)
+      {
+        var tmp = Intersection.CurveCurve(pl.ToPolylineCurve(), det[i].ToPolylineCurve(), 0.1, 0.1).Count;
+        counter += tmp;
+      }
+
+      if (counter != 0)
+      {
+        type = "B";
+      }
     }
   }
 
