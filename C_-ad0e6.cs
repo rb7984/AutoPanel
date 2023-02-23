@@ -12,10 +12,6 @@ using Grasshopper.Kernel.Types;
 
 using Rhino.Geometry.Intersect;
 using System.Linq;
-using Rhino.FileIO;
-using System.Runtime.Remoting.Messaging;
-using System.Reflection;
-
 
 /// <summary>
 /// This class will be instantiated on demand by the Script component.
@@ -67,6 +63,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
     names = grid.NameTags(panelC41s);
     archive = Archive(panelC41s);
     freeTag = grid.FreeTag(panelC41s);
+    A = grid.toExport(panelC41s);
   }
   #endregion
   #region Additional
@@ -103,6 +100,10 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       pts = new List<Point3d>();
 
       panels = Panels(xCoordinates, yCoordinates);
+
+      OrderOutput(panels);
+
+      PostPanels(panels);
     }
 
     public void OrderLines(DataTree<object> param)
@@ -152,6 +153,24 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       yCoordinates = ytmp;
 
       Borders(param);
+    }
+
+    public void OrderOutput(List<PanelC41> panels)
+    {
+      List<PanelC41> tmp = panels.OrderBy(a => a.firstCorner[0]).ThenBy(b => b.firstCorner[1]).ToList();
+
+      this.panels.Clear();
+
+      this.panels.AddRange(tmp);
+    }
+
+    void PostPanels(List<PanelC41> panels)
+    {
+      for (int i = 0; i < panels.Count - 1; i++)
+      {
+        if (panels[i].type == "B")
+          panels[i + 1].type = "D";
+      }
     }
 
     public List<PanelC41> Panels(List<double> xCoordinates, List<double> yCoordinates)
@@ -207,10 +226,18 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       List<string> names = panels.Select(i => i.type).ToList();
       for (int i = 0; i < panels.Count; i++)
       {
-        names[i] = names[i] + " - " + panels[i].name;
+        names[i] = names[i] + "|" + panels[i].name;
       }
 
       return names;
+    }
+
+    public List<string> toExport(List<PanelC41> panels)
+    {
+      List<string> export = panels.Select(i => i.toExcel).ToList();
+      export.Insert(0, "Type,Width,Heigh,Marca");
+
+      return export;
     }
 
     void Borders(DataTree<object> param)
@@ -249,6 +276,9 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
     public bool crossed;
     public string type;
     public string name;
+    public double[] firstCorner = new double[2];
+
+    public string toExcel;
 
     //Constructor
     public PanelC41(List<Point3d> list, DataTree<Polyline> obs)
@@ -262,6 +292,9 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       crossed = false;
 
       pl = new Polyline(list);
+      firstCorner[0] = pl[0].X;
+      firstCorner[1] = pl[0].Y;
+
       int[] i = Intercept(obs);
 
       if (i[0] >= 0)
@@ -276,6 +309,9 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       Name();
       Detached(obs.Branch(1));
       InterceptedPanelVarious(obs.Branch(3));
+
+      toExcel = type + "," + width.ToString() + "," + height.ToString() +
+        "," + type + "." + width.ToString() + "." + height.ToString();
     }
 
     public void Name()
@@ -413,18 +449,26 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       int counter = 0;
 
       double[] x = new double[] { pl[0].X, pl[1].X };
-      double[] y = new double[] { pl[0].Y, pl[1].Y };
+      double[] y = new double[] { pl[1].Y, pl[2].Y };
 
       for (int i = 0; i < obs.Count; i++)
       {
+        // Pannelli intersecati da un ostacolo
         var tmp = Intersection.CurveCurve(pl.ToPolylineCurve(), obs[i].ToPolylineCurve(), 0.1, 0.1).Count;
         counter += tmp;
 
-        double[] xObs = new double[] { obs[i][0].X, obs[i][1].X};
-        double[] yObs = new double[] { obs[i][0].Y, obs[i][1].Y};
+        double[] xObs = new double[] { obs[i][0].X, obs[i][1].X };
+        double[] yObs = new double[] { obs[i][1].Y, obs[i][2].Y };
 
-        if (xObs[1] > x[1] && x[0] > xObs[0] && y[1] > yObs[1] && y[0] > yObs[0]) counter++;
-        if (xObs[1] < x[1] && x[0] < xObs[0] && y[1] < yObs[1] && y[0] < yObs[0]) counter++;
+        // Pannelli C circondati
+        if (xObs[1] > x[1] && x[0] > xObs[0] && yObs[1] > y[1] && y[0] > yObs[0])
+        {
+          counter++;
+          crossed = true;
+        }
+
+        // Pannelli C con un foro
+        if (xObs[1] < x[1] && x[0] < xObs[0] && yObs[1] < y[1] && y[0] < yObs[0]) counter++;
       }
 
       if (counter > 0) type = "C";
