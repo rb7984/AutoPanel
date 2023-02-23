@@ -13,6 +13,7 @@ using Grasshopper.Kernel.Types;
 using Rhino.Geometry.Intersect;
 using System.Linq;
 
+
 /// <summary>
 /// This class will be instantiated on demand by the Script component.
 /// </summary>
@@ -168,8 +169,11 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
     {
       for (int i = 0; i < panels.Count - 1; i++)
       {
-        if (panels[i].type == "B")
-          panels[i + 1].type = "D";
+        if (panels[i].type == "B" || panels[i].type == "B*C")
+        {
+          if (panels[i + 1].type == "C") panels[i + 1].type = "D*C";
+          else panels[i + 1].type = "D";
+        }        
       }
     }
 
@@ -471,7 +475,11 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         if (xObs[1] < x[1] && x[0] < xObs[0] && yObs[1] < y[1] && y[0] < yObs[0]) counter++;
       }
 
-      if (counter > 0) type = "C";
+      if (counter > 0)
+      {
+        if (type == "A") type = "C";
+        else type += "*C";
+      }
     }
 
     public void Detached(List<Polyline> det)
