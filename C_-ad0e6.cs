@@ -14,6 +14,7 @@ using Rhino.Geometry.Intersect;
 using System.Linq;
 using Rhino.FileIO;
 using System.Runtime.Remoting.Messaging;
+using System.Reflection;
 
 
 /// <summary>
@@ -60,7 +61,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
   {
     grid = new Grid(x, y);
     panelC41s = grid.panels;
-    
+
     pl = grid.Plines(panelC41s);
     layerNames = grid.LayerNameTags(panelC41s);
     names = grid.NameTags(panelC41s);
@@ -79,9 +80,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
   public class Grid
   {
     public DataTree<object> param;
-    public DataTree<object> obs;
-    public List<Polyline> windows;
-    public List<Polyline> detachLines;
+    public DataTree<Polyline> obs;
 
     // tutte le coordinate delle fughe in X e Y
     public List<double> xCoordinates;
@@ -93,10 +92,11 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
     public Grid(DataTree<object> x, DataTree<object> y)
     {
       param = x;
-      obs = y;
- 
-      windows = y.Branch(0).Select(pl => (PolylineCurve)pl).ToList().Select(pl => pl.ToPolyline()).ToList();
-      detachLines = y.Branch(1).Select(pl => (PolylineCurve)pl).ToList().Select(pl => pl.ToPolyline()).ToList();
+
+      obs = new DataTree<Polyline>();
+
+      for (int i = 0; i < y.BranchCount; i++)
+      { obs.AddRange(y.Branch(i).Select(pl => (PolylineCurve)pl).ToList().Select(pl => pl.ToPolyline()).ToList(), new GH_Path(i)); }
 
       OrderLines(param);
 
@@ -173,7 +173,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
           pts.AddRange(points.GetRange(0, 4));
 
-          PanelC41 tmpPanel = new PanelC41(points, windows, detachLines);
+          PanelC41 tmpPanel = new PanelC41(points, obs);
           if (!tmpPanel.crossed) panels.Add(tmpPanel);
         }
       }
@@ -251,7 +251,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
     public string name;
 
     //Constructor
-    public PanelC41(List<Point3d> list, List<Polyline> obs, List<Polyline> det)
+    public PanelC41(List<Point3d> list, DataTree<Polyline> obs)
     {
       borderUp = 1;
       borderDown = 2;
@@ -262,34 +262,20 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       crossed = false;
 
       pl = new Polyline(list);
-      int i = Intercept(obs);
+      int[] i = Intercept(obs);
 
-      if (i >= 0)
+      if (i[0] >= 0)
       {
-        crossed = InterceptedPanel(obs, i, 8);
+        crossed = InterceptedPanelVertical(obs.Branch(0), i[0], 8);
+      }
+      if (i[1] >= 0)
+      {
+        crossed = InterceptedPanelHorizontal(obs.Branch(2), i[1], 8);
       }
 
       Name();
-      Detached(det);
-    }
-
-    public int Intercept(List<Polyline> obs)
-    {
-      // ora non funziona per ostacoli multipli che intersecano oggetti
-
-      int counter = 0;
-      int b = -1;
-
-      for (int i = 0; i < obs.Count; i++)
-      {
-        var tmp = Intersection.CurveCurve(pl.ToPolylineCurve(), obs[i].ToPolylineCurve(), 0.1, 0.1).Count;
-        counter += tmp;
-        if (tmp != 0) b = i;
-      }
-
-      if (counter == 0) crossed = false;
-      else crossed = true;
-      return b;
+      Detached(obs.Branch(1));
+      InterceptedPanelVarious(obs.Branch(3));
     }
 
     public void Name()
@@ -299,7 +285,34 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       name = width.ToString() + '-' + height.ToString();
     }
 
-    public bool InterceptedPanel(List<Polyline> obs, int i, double fuga)
+    public int[] Intercept(DataTree<Polyline> obs)
+    {
+      // ora non funziona per ostacoli multipli che intersecano oggetti
+
+      int counter = 0;
+      int b = -1;
+      int c = -1;
+
+      for (int i = 0; i < obs.Branch(0).Count; i++)
+      {
+        var tmp = Intersection.CurveCurve(pl.ToPolylineCurve(), obs.Branch(0)[i].ToPolylineCurve(), 0.1, 0.1).Count;
+        counter += tmp;
+        if (tmp != 0) b = i;
+      }
+
+      for (int i = 0; i < obs.Branch(2).Count; i++)
+      {
+        var tmp = Intersection.CurveCurve(pl.ToPolylineCurve(), obs.Branch(2)[i].ToPolylineCurve(), 0.1, 0.1).Count;
+        counter += tmp;
+        if (tmp != 0) c = i;
+      }
+
+      if (counter == 0) crossed = false;
+      else crossed = true;
+      return new int[] { b, c };
+    }
+
+    public bool InterceptedPanelVertical(List<Polyline> obs, int i, double fuga)
     {
       // Funziona solo per finestre centrate sui pannelli
       // Viene considerata solo la Y quindi
@@ -344,6 +357,77 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       }
 
       else { return false; }
+    }
+
+    public bool InterceptedPanelHorizontal(List<Polyline> obs, int i, double fuga)
+    {
+      // Funziona solo per rettangoli orizzontali centrati sui pannelli
+      // Viene considerata solo la X quindi
+
+      double[] xObs = new double[] { obs[i][0].X, obs[i][1].X, obs[i][2].X };
+      double[] x = new double[] { pl[0].X, pl[1].X, pl[2].X };
+
+      if (xObs.Max() >= x.Max() && xObs.Min() <= x.Min())
+      {
+        return true;
+      }
+
+      else if (x.Max() > xObs.Max())
+      {
+        double newX = xObs.Max();
+        List<Point3d> tmp = new List<Point3d>()
+        {
+          new Point3d(newX + fuga, pl[0].Y, 0),
+          new Point3d(pl[1]),
+          new Point3d(pl[2]),
+          new Point3d(newX + fuga, pl[3].Y,0 ),
+          new Point3d(newX + fuga, pl[0].Y, 0)
+        };
+
+        pl = new Polyline(tmp);
+        return false;
+      }
+
+      else if (x.Min() < xObs.Min())
+      {
+        double newX = xObs.Min();
+        List<Point3d> tmp = new List<Point3d>()
+        {
+          new Point3d(pl[0]),
+          new Point3d(newX - fuga, pl[1].Y, 0),
+          new Point3d(newX - fuga, pl[2].Y, 0),
+          new Point3d(pl[3]),
+          new Point3d(pl[0])
+        };
+
+        pl = new Polyline(tmp);
+
+        return false;
+      }
+
+      else { return false; }
+    }
+
+    public void InterceptedPanelVarious(List<Polyline> obs)
+    {
+      int counter = 0;
+
+      double[] x = new double[] { pl[0].X, pl[1].X };
+      double[] y = new double[] { pl[0].Y, pl[1].Y };
+
+      for (int i = 0; i < obs.Count; i++)
+      {
+        var tmp = Intersection.CurveCurve(pl.ToPolylineCurve(), obs[i].ToPolylineCurve(), 0.1, 0.1).Count;
+        counter += tmp;
+
+        double[] xObs = new double[] { obs[i][0].X, obs[i][1].X};
+        double[] yObs = new double[] { obs[i][0].Y, obs[i][1].Y};
+
+        if (xObs[1] > x[1] && x[0] > xObs[0] && y[1] > yObs[1] && y[0] > yObs[0]) counter++;
+        if (xObs[1] < x[1] && x[0] < xObs[0] && y[1] < yObs[1] && y[0] < yObs[0]) counter++;
+      }
+
+      if (counter > 0) type = "C";
     }
 
     public void Detached(List<Polyline> det)
