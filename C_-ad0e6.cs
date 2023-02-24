@@ -12,6 +12,7 @@ using Grasshopper.Kernel.Types;
 
 using Rhino.Geometry.Intersect;
 using System.Linq;
+using Rhino.DocObjects;
 
 
 /// <summary>
@@ -54,17 +55,17 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
   /// they will have a default value.
   /// </summary>
   #region Runscript
-  private void RunScript(DataTree<object> x, DataTree<object> y, ref object pl, ref object layerNames, ref object names, ref object archive, ref object freeTag, ref object A)
+  private void RunScript(DataTree<object> x, DataTree<object> y, ref object pl, ref object layerNames, ref object names, ref object archive, ref object freeTag, ref object export, ref object hatches)
   {
     grid = new Grid(x, y);
     panelC41s = grid.panels;
 
     pl = grid.Plines(panelC41s);
-    layerNames = grid.LayerNameTags(panelC41s);
+    layerNames = grid.TypeTags(panelC41s);
     names = grid.NameTags(panelC41s);
-    archive = Archive(panelC41s);
+    archive = ArchiveTypes(panelC41s);
     freeTag = grid.FreeTag(panelC41s);
-    A = grid.toExport(panelC41s);
+    export = grid.toExport(panelC41s);
   }
   #endregion
   #region Additional
@@ -173,7 +174,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         {
           if (panels[i + 1].type == "C") panels[i + 1].type = "D*C";
           else panels[i + 1].type = "D";
-        }        
+        }
       }
     }
 
@@ -218,7 +219,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       return freeTag;
     }
 
-    public List<string> LayerNameTags(List<PanelC41> panels)
+    public List<string> DimensionsTags(List<PanelC41> panels)
     {
       List<string> nameTags = panels.Select(i => i.name).ToList();
 
@@ -234,6 +235,13 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       }
 
       return names;
+    }
+
+    public List<string> TypeTags(List<PanelC41> panels)
+    {
+      List<string> types = panels.Select(i => i.type).ToList();
+
+      return types;
     }
 
     public List<string> toExport(List<PanelC41> panels)
@@ -501,12 +509,31 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
     }
   }
 
-  public List<string> Archive(List<PanelC41> panelC41s)
+  public List<string> ArchiveDimensions(List<PanelC41> panelC41s)
   {
     List<string> list;
     var orderedPanels = panelC41s.OrderBy(panelC41 => panelC41.width).ThenBy(panelC41 => panelC41.height);
 
     list = orderedPanels.Select(x => x.name).ToList();
+
+    List<string> arc = new List<string> { list[0] };
+    for (int i = 1; i < list.Count; i++)
+    {
+      if (list[i] != list[i - 1])
+      {
+        arc.Add(list[i]);
+      }
+    }
+
+    return arc;
+  }
+
+  public List<string> ArchiveTypes(List<PanelC41> panelC41s)
+  {
+    List<string> list;
+    var orderedPanels = panelC41s.OrderBy(panelC41 => panelC41.type);
+
+    list = orderedPanels.Select(x => x.type).ToList();
 
     List<string> arc = new List<string> { list[0] };
     for (int i = 1; i < list.Count; i++)
