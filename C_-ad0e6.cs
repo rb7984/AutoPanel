@@ -55,7 +55,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
   /// they will have a default value.
   /// </summary>
   #region Runscript
-  private void RunScript(DataTree<object> x, DataTree<object> y, ref object pl, ref object layerNames, ref object names, ref object archive, ref object freeTag, ref object export, ref object hatches)
+  private void RunScript(DataTree<object> x, DataTree<object> y, ref object pl, ref object layerNames, ref object names, ref object archive, ref object freeTag, ref object export, ref object PanelC41)
   {
     grid = new Grid(x, y);
     panelC41s = grid.panels;
@@ -66,6 +66,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
     archive = ArchiveTypes(panelC41s);
     freeTag = grid.FreeTag(panelC41s);
     export = grid.toExport(panelC41s);
+    PanelC41 = panelC41s;
   }
   #endregion
   #region Additional
