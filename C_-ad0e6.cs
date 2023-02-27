@@ -92,12 +92,12 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       panelsTree = new DataTree<PanelC41>();
       gridCount = new List<int>();
 
-      for (int i = 1; i < input.Branch(0).Count; i++)
+      for (int i = 0; i < FacadeCount(input) +1; i++)
       {
         int count = 0;
         DataTree<object> tmp = new DataTree<object>();
-        tmp.AddRange(new List<object> { input.Branch(0)[0], input.Branch(0)[i] }); count++;
-        tmp.AddRange(new List<object> { input.Branch(1)[0], input.Branch(1)[i] }, new GH_Path(count++)); count++;
+        tmp.AddRange(new List<object> { input.Branch(i)[0], input.Branch(i)[i] }); count++;
+        tmp.AddRange(new List<object> { input.Branch(i+1)[0], input.Branch(i+1)[i] }, new GH_Path(count++)); count++;
 
         for (int j = 2; j < input.BranchCount - 1; j++)
         {
