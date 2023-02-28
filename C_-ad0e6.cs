@@ -15,6 +15,7 @@ using System.Linq;
 using Rhino.DocObjects;
 using Rhino.UI.Controls;
 using Grasshopper.Kernel.Types.Transforms;
+using System.Diagnostics;
 
 
 /// <summary>
@@ -92,39 +93,55 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       panelsTree = new DataTree<PanelC41>();
       gridCount = new List<int>();
 
-      for (int i = 0; i < FacadeCount(input) +1; i++)
+      var counter = FacadeCount(input);
+      var pointer = 0;
+
+      for (int i = 0; i < counter.Count; i++)
       {
-        int count = 0;
         DataTree<object> tmp = new DataTree<object>();
-        tmp.AddRange(new List<object> { input.Branch(i)[0], input.Branch(i)[i] }); count++;
-        tmp.AddRange(new List<object> { input.Branch(i+1)[0], input.Branch(i+1)[i] }, new GH_Path(count++)); count++;
-
-        for (int j = 2; j < input.BranchCount - 1; j++)
-        {
-          var a = (int)input.Branch(j)[0].ToString().Split('-')[1][1];
-          if (a == i - 1) { tmp.AddRange(input.Branch(j), new GH_Path(count++)); count++; }
-        }
-        tmp.AddRange(new List<object> { input.Branch(input.BranchCount - 1)[0], input.Branch(input.BranchCount - 1)[i] }, new GH_Path(count++));
-
         DataTree<object> tmpObs = new DataTree<object>();
+        var count = 0;
 
-        for (int j = i - 1; j < obs.BranchCount; j = j + input.Branch(0).Count - 1)
+        for (int j = pointer; j < pointer + counter[i]; j++)
         {
-          tmpObs.AddRange(obs.Branch(j), new GH_Path());
+          tmp.AddRange(input.Branch(j), new GH_Path(count)); count++;
         }
 
+        var k = i * 4;
+        count = 0;
+        for (int j = k; j < 4; j++)
+        {
+          tmpObs.AddRange(obs.Branch(j), new GH_Path(count));
+          count++;
+        }
+
+        pointer += counter[i];
         Grid3d tmpGrid = new Grid3d(tmp, tmpObs);
-        //grids.Add(tmpGrid);
+        grids.Add(tmpGrid);
         //panelsTree.AddRange(tmpGrid.panels, new GH_Path(i - 1));
-        gridCount.Add(0);
       }
+
+      gridCount = counter;
     }
 
-    public double FacadeCount(DataTree<object> input)
+    public List<int> FacadeCount(DataTree<object> input)
     {
-      double a = char.GetNumericValue(input.Branch(input.BranchCount - 1)[0].ToString().Split('-')[1][0]);
+      List<int> k = new List<int> { 1 };
+      List<double> compare = new List<double>();
 
-      return a;
+      for (int i = 0; i < input.BranchCount; i++)
+      {
+        double a = char.GetNumericValue(input.Branch(i)[0].ToString().Split('-')[1][0]);
+        compare.Add(a);
+      }
+
+      for (int i = 1; i < compare.Count; i++)
+      {
+        if (compare[i] == compare[i - 1]) k[k.Count - 1]++;
+        else k.Add(1);
+      }
+
+      return k;
     }
   }
 
@@ -329,7 +346,8 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
   {
     public DataTree<object> param;
     public DataTree<Polyline> obs;
-    double[] rotation;
+    public double[] rotation;
+    public Polyline border;
 
     // tutte le coordinate delle fughe in X e Z
     public List<double> xCoordinates;
@@ -343,7 +361,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       param = x;
       obs = new DataTree<Polyline>();
 
-      // [rad, X,Y,Z]
+      // [rad]
       rotation = Rotation(x.Branch(0)[1]);
 
       for (int i = 0; i < y.BranchCount; i++)
@@ -356,7 +374,6 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       //panels = Panels(xCoordinates, zCoordinates);
 
 
-
       //OrderOutput(panels);
 
       //PostPanels(panels);
@@ -364,18 +381,24 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
     public double[] Rotation(object a)
     {
-      PolylineCurve tmpPl = (PolylineCurve)a;
+      PolylineCurve p = (PolylineCurve)a;
+      Polyline tmpPl = p.ToPolyline();
+      List<Point3d> list = tmpPl.Select(point => point).ToList();
+      list.RemoveAt(list.Count - 1);
+      list.OrderBy(point => point.Z).ThenBy(point => point.X);
 
-      var vec = tmpPl.PointAtEnd - tmpPl.PointAtStart;
+      border = new Polyline(list.GetRange(0, 2));
+
+      var vec = tmpPl.PointAt(1) - tmpPl.PointAt(0);
+
+      if (vec.Z != 0) { }
+      { vec = tmpPl.PointAt(2) - tmpPl.PointAt(1); }
 
       double angle = Vector3d.VectorAngle(vec, new Vector3d(1, 0, 0));
 
       double[] coordinates = new double[]
       {
-        angle,
-        tmpPl.PointAtStart.X,
-        tmpPl.PointAtStart.Y,
-        tmpPl.PointAtStart.Z
+        angle
       };
 
       return coordinates;
@@ -384,6 +407,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
     public void OrderLines(DataTree<object> param)
     {
       List<double> xtmp = new List<double>();
+      List<Point3d> ptmp = new List<Point3d>();
       List<double> ztmp = new List<double>();
 
       // i = 2 perché i primi due sono i due bordi singoli
@@ -391,9 +415,10 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       for (int i = 2; i < param.BranchCount - 1; i++)
       {
         int fuga = (int)Convert.ToInt64(param.Branch(i)[0].ToString().Split('-')[2].ToString().Split('.')[0]);
-        char dir = param.Branch(i)[0].ToString().Split('-')[1][0];
+        char dir = param.Branch(i)[0].ToString().Split('-')[1][1];
 
         List<double> tmp = new List<double>();
+        List<Point3d> tmpP = new List<Point3d>();
 
         if (dir == 'h')
         {
