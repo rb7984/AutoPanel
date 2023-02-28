@@ -64,23 +64,22 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
     panelC41s = new List<PanelC41>();
     plines = new List<Polyline>();
-    polylines = new DataTree<Polyline>();
+    this.archive = new List<string>();
     foreach (Grid3d grid in facade.grids)
     {
       panelC41s.AddRange(grid.panels);
       plines.AddRange(grid.Plines(grid.panels));
-
-      polylines.AddRange(grid.Plines(grid.panels), new GH_Path(facade.grids.IndexOf(grid)));
     }
+    this.archive.AddRange(ArchiveTypes(panelC41s));
 
     A = facade.gridCount;
-    //pl = facade.grids[0].Plines(panelC41s);
+    pl = plines;
     //layerNames = facade.grids[0].TypeTags(panelC41s);
     //names = facade.grids[0].NameTags(panelC41s);
-    //archive = ArchiveTypes(panelC41s);
+    archive = this.archive;
     //freeTag = facade.grids[0].FreeTag(panelC41s);
     //export = facade.grids[0].toExport(panelC41s);
-    PanelC41 = polylines;
+    //PanelC41 = plines;
   }
   #endregion
   #region Additional
@@ -89,7 +88,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
   public Facade facade;
   public List<PanelC41> panelC41s;
   public List<Polyline> plines;
-  public DataTree<Polyline> polylines;
+  public List<string> names;
 
   public List<string> archive;
 
@@ -159,209 +158,11 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
     }
   }
 
-  //public class Grid
-  //{
-  //  public DataTree<object> param;
-  //  public DataTree<Polyline> obs;
-
-  //  // tutte le coordinate delle fughe in X e Y
-  //  public List<double> xCoordinates;
-  //  public List<double> yCoordinates;
-
-  //  public List<PanelC41> panels;
-  //  public List<Point3d> pts;
-
-  //  public Grid(DataTree<object> x, DataTree<object> y)
-  //  {
-  //    param = x;
-  //    obs = new DataTree<Polyline>();
-
-  //    for (int i = 0; i < y.BranchCount; i++)
-  //    { obs.AddRange(y.Branch(i).Select(pl => (PolylineCurve)pl).ToList().Select(pl => pl.ToPolyline()).ToList(), new GH_Path(i)); }
-
-  //    OrderLines(param);
-
-  //    pts = new List<Point3d>();
-
-  //    panels = Panels(xCoordinates, yCoordinates);
-
-  //    OrderOutput(panels);
-
-  //    PostPanels(panels);
-  //  }
-
-  //  public void OrderLines(DataTree<object> param)
-  //  {
-  //    List<double> xtmp = new List<double>();
-  //    List<double> ytmp = new List<double>();
-
-  //    // param.BranchCount - 1 perchè l'ultimo branch sono i bordi esterni
-  //    for (int i = 2; i < param.BranchCount - 1; i++)
-  //    {
-  //      int fuga = (int)Convert.ToInt64(param.Branch(i)[0].ToString().Split('-')[2].ToString().Split('.')[0]);
-  //      string dir = param.Branch(i)[0].ToString().Split('-')[1];
-
-  //      List<double> tmp = new List<double>();
-
-  //      if (dir == "h")
-  //      {
-  //        // start at j = 1 perchè la prima linea è il nome del layer 
-  //        for (int j = 1; j < param.Branch(i).Count; j++)
-  //        {
-  //          PolylineCurve tmpPl = (PolylineCurve)param.Branch(i)[j];
-  //          tmp.Add(tmpPl.PointAt(0).Y - fuga);
-  //          tmp.Add(tmpPl.PointAt(0).Y + fuga);
-  //        }
-
-  //        ytmp.AddRange(tmp);
-  //      }
-
-  //      else if (dir == "v")
-  //      {
-  //        // start at j = 1 perchè la prima linea è il nome del layer
-  //        for (int j = 1; j < param.Branch(i).Count; j++)
-  //        {
-  //          PolylineCurve tmpPl = (PolylineCurve)param.Branch(i)[j];
-  //          tmp.Add(tmpPl.PointAt(0).X - fuga);
-  //          tmp.Add(tmpPl.PointAt(0).X + fuga);
-  //        }
-
-  //        xtmp.AddRange(tmp);
-  //      }
-  //    }
-
-  //    xtmp.Sort();
-  //    ytmp.Sort();
-
-  //    xCoordinates = xtmp;
-  //    yCoordinates = ytmp;
-
-  //    Borders(param);
-  //  }
-
-  //  public void OrderOutput(List<PanelC41> panels)
-  //  {
-  //    List<PanelC41> tmp = panels.OrderBy(a => a.firstCorner[0]).ThenBy(b => b.firstCorner[1]).ToList();
-
-  //    this.panels.Clear();
-
-  //    this.panels.AddRange(tmp);
-  //  }
-
-  //  void PostPanels(List<PanelC41> panels)
-  //  {
-  //    for (int i = 0; i < panels.Count - 1; i++)
-  //    {
-  //      if (panels[i].type == "B" || panels[i].type == "B*C")
-  //      {
-  //        if (panels[i + 1].type == "C") panels[i + 1].type = "D*C";
-  //        else panels[i + 1].type = "D";
-  //      }
-  //    }
-  //  }
-
-  //  public List<PanelC41> Panels(List<double> xCoordinates, List<double> yCoordinates)
-  //  {
-  //    List<PanelC41> panels = new List<PanelC41>();
-
-  //    for (int i = 0; i < yCoordinates.Count; i += 2)
-  //    {
-  //      for (int j = 0; j < xCoordinates.Count; j += 2)
-  //      {
-  //        var points = new List<Point3d>
-  //          {
-  //            new Point3d(xCoordinates[j], yCoordinates[i], 0),
-  //            new Point3d(xCoordinates[j + 1], yCoordinates[i], 0),
-  //            new Point3d(xCoordinates[j + 1], yCoordinates[i + 1], 0),
-  //            new Point3d(xCoordinates[j], yCoordinates[i + 1], 0),
-  //            new Point3d(xCoordinates[j], yCoordinates[i], 0)
-  //            };
-
-  //        pts.AddRange(points.GetRange(0, 4));
-
-  //        PanelC41 tmpPanel = new PanelC41(points, obs);
-  //        if (!tmpPanel.crossed) panels.Add(tmpPanel);
-  //      }
-  //    }
-
-  //    return panels;
-  //  }
-
-  //  public List<Polyline> Plines(List<PanelC41> panels)
-  //  {
-  //    List<Polyline> polylines = panels.Select(i => i.pl).ToList();
-
-  //    return polylines;
-  //  }
-
-  //  public List<bool> FreeTag(List<PanelC41> panels)
-  //  {
-  //    List<bool> freeTag = panels.Select(i => i.crossed).ToList();
-
-  //    return freeTag;
-  //  }
-
-  //  public List<string> DimensionsTags(List<PanelC41> panels)
-  //  {
-  //    List<string> nameTags = panels.Select(i => i.name).ToList();
-
-  //    return nameTags;
-  //  }
-
-  //  public List<string> NameTags(List<PanelC41> panels)
-  //  {
-  //    List<string> names = panels.Select(i => i.type).ToList();
-  //    for (int i = 0; i < panels.Count; i++)
-  //    {
-  //      names[i] = names[i] + "|" + panels[i].name;
-  //    }
-
-  //    return names;
-  //  }
-
-  //  public List<string> TypeTags(List<PanelC41> panels)
-  //  {
-  //    List<string> types = panels.Select(i => i.type).ToList();
-
-  //    return types;
-  //  }
-
-  //  public List<string> toExport(List<PanelC41> panels)
-  //  {
-  //    List<string> export = panels.Select(i => i.toExcel).ToList();
-  //    export.Insert(0, "Type,Width,Heigh,Marca");
-
-  //    return export;
-  //  }
-
-  //  void Borders(DataTree<object> param)
-  //  {
-  //    int[] fughe = param.Branch(param.BranchCount - 1)[0].ToString().Split('-')[2].Split('.').Select(element => Convert.ToInt32(element)).ToArray();
-
-  //    PolylineCurve curve = (PolylineCurve)param.Branch(param.BranchCount - 1)[1];
-
-  //    double[] x = new double[4];
-  //    double[] y = new double[4];
-
-  //    for (int i = 0; i < 4; i++)
-  //    {
-  //      x[i] = curve.Point(i).X;
-  //      y[i] = curve.Point(i).Y;
-  //    }
-
-  //    yCoordinates.Insert(0, Math.Round(y.Min() + fughe[0]));
-  //    xCoordinates.Insert(xCoordinates.Count, Math.Round(x.Max() - fughe[1]));
-  //    yCoordinates.Insert(yCoordinates.Count, Math.Round(y.Max() - fughe[2]));
-  //    xCoordinates.Insert(0, Math.Round(x.Min() + fughe[3]));
-  //  }
-  //}
-
   public class Grid3d
   {
     DataTree<object> param;
     DataTree<Polyline> obs;
-
-    double[] rotation;
+    //readonly double[] rotation;
     public Polyline border;
     public Polyline height;
 
@@ -377,12 +178,10 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       param = x;
       obs = new DataTree<Polyline>();
 
-      // [rad]
-      rotation = Rotation(x.Branch(0)[1]);
-
       for (int i = 0; i < y.BranchCount; i++)
       { obs.AddRange(y.Branch(i).Select(pl => (PolylineCurve)pl).ToList().Select(pl => pl.ToPolyline()).ToList(), new GH_Path(i)); }
 
+      BorderRotation(x.Branch(0)[1]);
       OrderLines(param);
 
       pts = new List<Point3d>();
@@ -394,7 +193,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       //PostPanels(panels);
     }
 
-    public double[] Rotation(object a)
+    public void BorderRotation(object a)
     {
       PolylineCurve p = (PolylineCurve)a;
       Polyline tmpPl = p.ToPolyline();
@@ -404,20 +203,6 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
       border = new Polyline(list.GetRange(0, 2));
       height = new Polyline(new List<Point3d> { list[3], list[0] });
-
-      var vec = tmpPl.PointAt(1) - tmpPl.PointAt(0);
-
-      if (vec.Z != 0) { }
-      { vec = tmpPl.PointAt(2) - tmpPl.PointAt(1); }
-
-      double angle = Vector3d.VectorAngle(vec, new Vector3d(1, 0, 0));
-
-      double[] coordinates = new double[]
-      {
-        angle
-      };
-
-      return coordinates;
     }
 
     public void OrderLines(DataTree<object> param)
@@ -507,29 +292,6 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
       return panels;
     }
-
-    //void Borders(DataTree<object> param)
-    //{
-    //  int[] fughe = param.Branch(param.BranchCount - 1)[0].ToString().Split('-')[2].Split('.').Select(element => Convert.ToInt32(element)).ToArray();
-    //  //int a = Convert.ToInt32(param.Branch(param.BranchCount - 1)[0].ToString().Split('-')[2].Split('.')[1]);
-    //  //PolylineCurve curve = (PolylineCurve)param.Branch(param.BranchCount - 1)[1];
-    //  //Point3d tmpPoint = curve.PointAtStart;
-    //  //tmpPoint.Transform(Transform.Rotation(rotation[0], new Point3d(rotation[1], rotation[2], 0)));
-
-    //  //double[] x = new double[4];
-    //  //double[] z = new double[4];
-
-    //  //for (int i = 0; i < 4; i++)
-    //  //{
-    //  //  x[i] = curve.Point(i).X;
-    //  //  z[i] = curve.Point(i).Z;
-    //  //}
-
-    //  //zCoordinates.Insert(0, Math.Round(z.Min() + fughe[0]));
-    //  //xCoordinates.Insert(xCoordinates.Count, Math.Round(x.Max() - fughe[1]));
-    //  //zCoordinates.Insert(zCoordinates.Count, Math.Round(z.Max() - fughe[2]));
-    //  //xCoordinates.Insert(0, Math.Round(x.Min() + fughe[3]));
-    //}
 
     public void OrderOutput(List<PanelC41> panels)
     {
