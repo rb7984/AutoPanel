@@ -62,6 +62,17 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
   {
     facade = new Facade(x, y);
 
+    panelC41s = new List<PanelC41>();
+    plines = new List<Polyline>();
+    polylines = new DataTree<Polyline>();
+    foreach (Grid3d grid in facade.grids)
+    {
+      panelC41s.AddRange(grid.panels);
+      plines.AddRange(grid.Plines(grid.panels));
+
+      polylines.AddRange(grid.Plines(grid.panels), new GH_Path(facade.grids.IndexOf(grid)));
+    }
+
     A = facade.gridCount;
     //pl = facade.grids[0].Plines(panelC41s);
     //layerNames = facade.grids[0].TypeTags(panelC41s);
@@ -69,6 +80,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
     //archive = ArchiveTypes(panelC41s);
     //freeTag = facade.grids[0].FreeTag(panelC41s);
     //export = facade.grids[0].toExport(panelC41s);
+    PanelC41 = polylines;
   }
   #endregion
   #region Additional
@@ -76,6 +88,8 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
   // fields
   public Facade facade;
   public List<PanelC41> panelC41s;
+  public List<Polyline> plines;
+  public DataTree<Polyline> polylines;
 
   public List<string> archive;
 
@@ -145,213 +159,215 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
     }
   }
 
-  public class Grid
-  {
-    public DataTree<object> param;
-    public DataTree<Polyline> obs;
+  //public class Grid
+  //{
+  //  public DataTree<object> param;
+  //  public DataTree<Polyline> obs;
 
-    // tutte le coordinate delle fughe in X e Y
-    public List<double> xCoordinates;
-    public List<double> yCoordinates;
+  //  // tutte le coordinate delle fughe in X e Y
+  //  public List<double> xCoordinates;
+  //  public List<double> yCoordinates;
 
-    public List<PanelC41> panels;
-    public List<Point3d> pts;
+  //  public List<PanelC41> panels;
+  //  public List<Point3d> pts;
 
-    public Grid(DataTree<object> x, DataTree<object> y)
-    {
-      param = x;
-      obs = new DataTree<Polyline>();
+  //  public Grid(DataTree<object> x, DataTree<object> y)
+  //  {
+  //    param = x;
+  //    obs = new DataTree<Polyline>();
 
-      for (int i = 0; i < y.BranchCount; i++)
-      { obs.AddRange(y.Branch(i).Select(pl => (PolylineCurve)pl).ToList().Select(pl => pl.ToPolyline()).ToList(), new GH_Path(i)); }
+  //    for (int i = 0; i < y.BranchCount; i++)
+  //    { obs.AddRange(y.Branch(i).Select(pl => (PolylineCurve)pl).ToList().Select(pl => pl.ToPolyline()).ToList(), new GH_Path(i)); }
 
-      OrderLines(param);
+  //    OrderLines(param);
 
-      pts = new List<Point3d>();
+  //    pts = new List<Point3d>();
 
-      panels = Panels(xCoordinates, yCoordinates);
+  //    panels = Panels(xCoordinates, yCoordinates);
 
-      OrderOutput(panels);
+  //    OrderOutput(panels);
 
-      PostPanels(panels);
-    }
+  //    PostPanels(panels);
+  //  }
 
-    public void OrderLines(DataTree<object> param)
-    {
-      List<double> xtmp = new List<double>();
-      List<double> ytmp = new List<double>();
+  //  public void OrderLines(DataTree<object> param)
+  //  {
+  //    List<double> xtmp = new List<double>();
+  //    List<double> ytmp = new List<double>();
 
-      // param.BranchCount - 1 perchè l'ultimo branch sono i bordi esterni
-      for (int i = 2; i < param.BranchCount - 1; i++)
-      {
-        int fuga = (int)Convert.ToInt64(param.Branch(i)[0].ToString().Split('-')[2].ToString().Split('.')[0]);
-        string dir = param.Branch(i)[0].ToString().Split('-')[1];
+  //    // param.BranchCount - 1 perchè l'ultimo branch sono i bordi esterni
+  //    for (int i = 2; i < param.BranchCount - 1; i++)
+  //    {
+  //      int fuga = (int)Convert.ToInt64(param.Branch(i)[0].ToString().Split('-')[2].ToString().Split('.')[0]);
+  //      string dir = param.Branch(i)[0].ToString().Split('-')[1];
 
-        List<double> tmp = new List<double>();
+  //      List<double> tmp = new List<double>();
 
-        if (dir == "h")
-        {
-          // start at j = 1 perchè la prima linea è il nome del layer 
-          for (int j = 1; j < param.Branch(i).Count; j++)
-          {
-            PolylineCurve tmpPl = (PolylineCurve)param.Branch(i)[j];
-            tmp.Add(tmpPl.PointAt(0).Y - fuga);
-            tmp.Add(tmpPl.PointAt(0).Y + fuga);
-          }
+  //      if (dir == "h")
+  //      {
+  //        // start at j = 1 perchè la prima linea è il nome del layer 
+  //        for (int j = 1; j < param.Branch(i).Count; j++)
+  //        {
+  //          PolylineCurve tmpPl = (PolylineCurve)param.Branch(i)[j];
+  //          tmp.Add(tmpPl.PointAt(0).Y - fuga);
+  //          tmp.Add(tmpPl.PointAt(0).Y + fuga);
+  //        }
 
-          ytmp.AddRange(tmp);
-        }
+  //        ytmp.AddRange(tmp);
+  //      }
 
-        else if (dir == "v")
-        {
-          // start at j = 1 perchè la prima linea è il nome del layer
-          for (int j = 1; j < param.Branch(i).Count; j++)
-          {
-            PolylineCurve tmpPl = (PolylineCurve)param.Branch(i)[j];
-            tmp.Add(tmpPl.PointAt(0).X - fuga);
-            tmp.Add(tmpPl.PointAt(0).X + fuga);
-          }
+  //      else if (dir == "v")
+  //      {
+  //        // start at j = 1 perchè la prima linea è il nome del layer
+  //        for (int j = 1; j < param.Branch(i).Count; j++)
+  //        {
+  //          PolylineCurve tmpPl = (PolylineCurve)param.Branch(i)[j];
+  //          tmp.Add(tmpPl.PointAt(0).X - fuga);
+  //          tmp.Add(tmpPl.PointAt(0).X + fuga);
+  //        }
 
-          xtmp.AddRange(tmp);
-        }
-      }
+  //        xtmp.AddRange(tmp);
+  //      }
+  //    }
 
-      xtmp.Sort();
-      ytmp.Sort();
+  //    xtmp.Sort();
+  //    ytmp.Sort();
 
-      xCoordinates = xtmp;
-      yCoordinates = ytmp;
+  //    xCoordinates = xtmp;
+  //    yCoordinates = ytmp;
 
-      Borders(param);
-    }
+  //    Borders(param);
+  //  }
 
-    public void OrderOutput(List<PanelC41> panels)
-    {
-      List<PanelC41> tmp = panels.OrderBy(a => a.firstCorner[0]).ThenBy(b => b.firstCorner[1]).ToList();
+  //  public void OrderOutput(List<PanelC41> panels)
+  //  {
+  //    List<PanelC41> tmp = panels.OrderBy(a => a.firstCorner[0]).ThenBy(b => b.firstCorner[1]).ToList();
 
-      this.panels.Clear();
+  //    this.panels.Clear();
 
-      this.panels.AddRange(tmp);
-    }
+  //    this.panels.AddRange(tmp);
+  //  }
 
-    void PostPanels(List<PanelC41> panels)
-    {
-      for (int i = 0; i < panels.Count - 1; i++)
-      {
-        if (panels[i].type == "B" || panels[i].type == "B*C")
-        {
-          if (panels[i + 1].type == "C") panels[i + 1].type = "D*C";
-          else panels[i + 1].type = "D";
-        }
-      }
-    }
+  //  void PostPanels(List<PanelC41> panels)
+  //  {
+  //    for (int i = 0; i < panels.Count - 1; i++)
+  //    {
+  //      if (panels[i].type == "B" || panels[i].type == "B*C")
+  //      {
+  //        if (panels[i + 1].type == "C") panels[i + 1].type = "D*C";
+  //        else panels[i + 1].type = "D";
+  //      }
+  //    }
+  //  }
 
-    public List<PanelC41> Panels(List<double> xCoordinates, List<double> yCoordinates)
-    {
-      List<PanelC41> panels = new List<PanelC41>();
+  //  public List<PanelC41> Panels(List<double> xCoordinates, List<double> yCoordinates)
+  //  {
+  //    List<PanelC41> panels = new List<PanelC41>();
 
-      for (int i = 0; i < yCoordinates.Count; i += 2)
-      {
-        for (int j = 0; j < xCoordinates.Count; j += 2)
-        {
-          var points = new List<Point3d>
-            {
-              new Point3d(xCoordinates[j], yCoordinates[i], 0),
-              new Point3d(xCoordinates[j + 1], yCoordinates[i], 0),
-              new Point3d(xCoordinates[j + 1], yCoordinates[i + 1], 0),
-              new Point3d(xCoordinates[j], yCoordinates[i + 1], 0),
-              new Point3d(xCoordinates[j], yCoordinates[i], 0)
-              };
+  //    for (int i = 0; i < yCoordinates.Count; i += 2)
+  //    {
+  //      for (int j = 0; j < xCoordinates.Count; j += 2)
+  //      {
+  //        var points = new List<Point3d>
+  //          {
+  //            new Point3d(xCoordinates[j], yCoordinates[i], 0),
+  //            new Point3d(xCoordinates[j + 1], yCoordinates[i], 0),
+  //            new Point3d(xCoordinates[j + 1], yCoordinates[i + 1], 0),
+  //            new Point3d(xCoordinates[j], yCoordinates[i + 1], 0),
+  //            new Point3d(xCoordinates[j], yCoordinates[i], 0)
+  //            };
 
-          pts.AddRange(points.GetRange(0, 4));
+  //        pts.AddRange(points.GetRange(0, 4));
 
-          PanelC41 tmpPanel = new PanelC41(points, obs);
-          if (!tmpPanel.crossed) panels.Add(tmpPanel);
-        }
-      }
+  //        PanelC41 tmpPanel = new PanelC41(points, obs);
+  //        if (!tmpPanel.crossed) panels.Add(tmpPanel);
+  //      }
+  //    }
 
-      return panels;
-    }
+  //    return panels;
+  //  }
 
-    public List<Polyline> Plines(List<PanelC41> panels)
-    {
-      List<Polyline> polylines = panels.Select(i => i.pl).ToList();
+  //  public List<Polyline> Plines(List<PanelC41> panels)
+  //  {
+  //    List<Polyline> polylines = panels.Select(i => i.pl).ToList();
 
-      return polylines;
-    }
+  //    return polylines;
+  //  }
 
-    public List<bool> FreeTag(List<PanelC41> panels)
-    {
-      List<bool> freeTag = panels.Select(i => i.crossed).ToList();
+  //  public List<bool> FreeTag(List<PanelC41> panels)
+  //  {
+  //    List<bool> freeTag = panels.Select(i => i.crossed).ToList();
 
-      return freeTag;
-    }
+  //    return freeTag;
+  //  }
 
-    public List<string> DimensionsTags(List<PanelC41> panels)
-    {
-      List<string> nameTags = panels.Select(i => i.name).ToList();
+  //  public List<string> DimensionsTags(List<PanelC41> panels)
+  //  {
+  //    List<string> nameTags = panels.Select(i => i.name).ToList();
 
-      return nameTags;
-    }
+  //    return nameTags;
+  //  }
 
-    public List<string> NameTags(List<PanelC41> panels)
-    {
-      List<string> names = panels.Select(i => i.type).ToList();
-      for (int i = 0; i < panels.Count; i++)
-      {
-        names[i] = names[i] + "|" + panels[i].name;
-      }
+  //  public List<string> NameTags(List<PanelC41> panels)
+  //  {
+  //    List<string> names = panels.Select(i => i.type).ToList();
+  //    for (int i = 0; i < panels.Count; i++)
+  //    {
+  //      names[i] = names[i] + "|" + panels[i].name;
+  //    }
 
-      return names;
-    }
+  //    return names;
+  //  }
 
-    public List<string> TypeTags(List<PanelC41> panels)
-    {
-      List<string> types = panels.Select(i => i.type).ToList();
+  //  public List<string> TypeTags(List<PanelC41> panels)
+  //  {
+  //    List<string> types = panels.Select(i => i.type).ToList();
 
-      return types;
-    }
+  //    return types;
+  //  }
 
-    public List<string> toExport(List<PanelC41> panels)
-    {
-      List<string> export = panels.Select(i => i.toExcel).ToList();
-      export.Insert(0, "Type,Width,Heigh,Marca");
+  //  public List<string> toExport(List<PanelC41> panels)
+  //  {
+  //    List<string> export = panels.Select(i => i.toExcel).ToList();
+  //    export.Insert(0, "Type,Width,Heigh,Marca");
 
-      return export;
-    }
+  //    return export;
+  //  }
 
-    void Borders(DataTree<object> param)
-    {
-      int[] fughe = param.Branch(param.BranchCount - 1)[0].ToString().Split('-')[2].Split('.').Select(element => Convert.ToInt32(element)).ToArray();
+  //  void Borders(DataTree<object> param)
+  //  {
+  //    int[] fughe = param.Branch(param.BranchCount - 1)[0].ToString().Split('-')[2].Split('.').Select(element => Convert.ToInt32(element)).ToArray();
 
-      PolylineCurve curve = (PolylineCurve)param.Branch(param.BranchCount - 1)[1];
+  //    PolylineCurve curve = (PolylineCurve)param.Branch(param.BranchCount - 1)[1];
 
-      double[] x = new double[4];
-      double[] y = new double[4];
+  //    double[] x = new double[4];
+  //    double[] y = new double[4];
 
-      for (int i = 0; i < 4; i++)
-      {
-        x[i] = curve.Point(i).X;
-        y[i] = curve.Point(i).Y;
-      }
+  //    for (int i = 0; i < 4; i++)
+  //    {
+  //      x[i] = curve.Point(i).X;
+  //      y[i] = curve.Point(i).Y;
+  //    }
 
-      yCoordinates.Insert(0, Math.Round(y.Min() + fughe[0]));
-      xCoordinates.Insert(xCoordinates.Count, Math.Round(x.Max() - fughe[1]));
-      yCoordinates.Insert(yCoordinates.Count, Math.Round(y.Max() - fughe[2]));
-      xCoordinates.Insert(0, Math.Round(x.Min() + fughe[3]));
-    }
-  }
+  //    yCoordinates.Insert(0, Math.Round(y.Min() + fughe[0]));
+  //    xCoordinates.Insert(xCoordinates.Count, Math.Round(x.Max() - fughe[1]));
+  //    yCoordinates.Insert(yCoordinates.Count, Math.Round(y.Max() - fughe[2]));
+  //    xCoordinates.Insert(0, Math.Round(x.Min() + fughe[3]));
+  //  }
+  //}
 
   public class Grid3d
   {
-    public DataTree<object> param;
-    public DataTree<Polyline> obs;
-    public double[] rotation;
+    DataTree<object> param;
+    DataTree<Polyline> obs;
+
+    double[] rotation;
     public Polyline border;
+    public Polyline height;
 
     // tutte le coordinate delle fughe in X e Z
-    public List<double> xCoordinates;
-    public List<double> zCoordinates;
+    List<Point3d> pointCoordinates;
+    List<double> zCoordinates;
 
     public List<PanelC41> panels;
     public List<Point3d> pts;
@@ -369,12 +385,11 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
       OrderLines(param);
 
-      //pts = new List<Point3d>();
+      pts = new List<Point3d>();
 
-      //panels = Panels(xCoordinates, zCoordinates);
+      panels = Panels(pointCoordinates, zCoordinates);
 
-
-      //OrderOutput(panels);
+      OrderOutput(panels);
 
       //PostPanels(panels);
     }
@@ -388,6 +403,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       list.OrderBy(point => point.Z).ThenBy(point => point.X);
 
       border = new Polyline(list.GetRange(0, 2));
+      height = new Polyline(new List<Point3d> { list[3], list[0] });
 
       var vec = tmpPl.PointAt(1) - tmpPl.PointAt(0);
 
@@ -410,14 +426,12 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       List<Point3d> ptmp = new List<Point3d>();
       List<double> ztmp = new List<double>();
 
-      // i = 2 perché i primi due sono i due bordi singoli
-      // param.BranchCount - 1 perchè l'ultimo branch sono i bordi esterni
-      for (int i = 2; i < param.BranchCount - 1; i++)
+      // i = 1 perché il primo è il bordo
+      for (int i = 1; i < param.BranchCount; i++)
       {
         int fuga = (int)Convert.ToInt64(param.Branch(i)[0].ToString().Split('-')[2].ToString().Split('.')[0]);
         char dir = param.Branch(i)[0].ToString().Split('-')[1][1];
 
-        List<double> tmp = new List<double>();
         List<Point3d> tmpP = new List<Point3d>();
 
         if (dir == 'h')
@@ -426,11 +440,9 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
           for (int j = 1; j < param.Branch(i).Count; j++)
           {
             PolylineCurve tmpPl = (PolylineCurve)param.Branch(i)[j];
-            tmp.Add(tmpPl.PointAt(0).Z - fuga);
-            tmp.Add(tmpPl.PointAt(0).Z + fuga);
+            ztmp.Add(tmpPl.PointAt(0).Z - fuga);
+            ztmp.Add(tmpPl.PointAt(0).Z + fuga);
           }
-
-          ztmp.AddRange(tmp);
         }
 
         else if (dir == 'v')
@@ -440,46 +452,84 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
           {
             PolylineCurve tmpPl = (PolylineCurve)param.Branch(i)[j];
             Point3d tmpPoint = tmpPl.PointAtStart;
-            tmpPoint.Transform(Transform.Rotation(rotation[0], new Point3d(rotation[1], rotation[2], 0)));
-            tmp.Add(tmpPoint.X - fuga);
-            tmp.Add(tmpPoint.X + fuga);
+            Point3d tp = new Point3d(tmpPl.PointAt(0).X, tmpPl.PointAt(0).Y, border.PointAt(0).Z);
+            Circle c = new Circle(tp, fuga);
+            var events = Intersection.CurveCurve(border.ToNurbsCurve(), c.ToNurbsCurve(), 0.1, 0.1);
+            foreach (IntersectionEvent ie in events) { tmpP.Add(new Point3d(ie.PointA)); }
           }
 
-          xtmp.AddRange(tmp);
+          ptmp.AddRange(tmpP);
         }
       }
 
-      xtmp.Sort();
       ztmp.Sort();
+      ztmp.RemoveAt(0);
+      ztmp.RemoveAt(0);
+      ztmp.RemoveAt(ztmp.Count - 1);
+      ztmp.RemoveAt(ztmp.Count - 1);
+      double[] t = new double[] { height[0].Z, height[1].Z };
+      ztmp.Insert(0, t.Min());
+      ztmp.Add(t.Max());
 
-      xCoordinates = xtmp;
+      ptmp = ptmp.OrderBy(point => point.X).ToList();
+      ptmp.RemoveAt(0);
+      ptmp.RemoveAt(ptmp.Count - 1);
+      ptmp.AddRange(new List<Point3d> { border.PointAt(0), border.PointAt(1) });
+
+      pointCoordinates = ptmp.OrderBy(point => point.X).ToList();
       zCoordinates = ztmp;
 
-      Borders(param);
+      //Borders(param);
     }
 
-    void Borders(DataTree<object> param)
+    public List<PanelC41> Panels(List<Point3d> pointCoordinates, List<double> zCoordinates)
     {
-      int[] fughe = param.Branch(param.BranchCount - 1)[0].ToString().Split('-')[2].Split('.').Select(element => Convert.ToInt32(element)).ToArray();
-      //int a = Convert.ToInt32(param.Branch(param.BranchCount - 1)[0].ToString().Split('-')[2].Split('.')[1]);
-      //PolylineCurve curve = (PolylineCurve)param.Branch(param.BranchCount - 1)[1];
-      //Point3d tmpPoint = curve.PointAtStart;
-      //tmpPoint.Transform(Transform.Rotation(rotation[0], new Point3d(rotation[1], rotation[2], 0)));
+      List<PanelC41> panels = new List<PanelC41>();
 
-      //double[] x = new double[4];
-      //double[] z = new double[4];
+      for (int i = 0; i < zCoordinates.Count; i += 2)
+      {
+        for (int j = 0; j < pointCoordinates.Count; j += 2)
+        {
+          var points = new List<Point3d> {
+                new Point3d(pointCoordinates[j].X, pointCoordinates[j].Y, zCoordinates[i]),
+                new Point3d(pointCoordinates[j + 1].X, pointCoordinates[j + 1].Y, zCoordinates[i]),
+                new Point3d(pointCoordinates[j + 1].X, pointCoordinates[j + 1].Y, zCoordinates[i + 1]),
+                new Point3d(pointCoordinates[j].X, pointCoordinates[j].Y, zCoordinates[i + 1]),
+                new Point3d(pointCoordinates[j].X, pointCoordinates[j].Y, zCoordinates[i])
+            };
 
-      //for (int i = 0; i < 4; i++)
-      //{
-      //  x[i] = curve.Point(i).X;
-      //  z[i] = curve.Point(i).Z;
-      //}
+          pts.AddRange(points.GetRange(0, 4));
 
-      //zCoordinates.Insert(0, Math.Round(z.Min() + fughe[0]));
-      //xCoordinates.Insert(xCoordinates.Count, Math.Round(x.Max() - fughe[1]));
-      //zCoordinates.Insert(zCoordinates.Count, Math.Round(z.Max() - fughe[2]));
-      //xCoordinates.Insert(0, Math.Round(x.Min() + fughe[3]));
+          PanelC41 tmpPanel = new PanelC41(points);
+          if (!tmpPanel.crossed) panels.Add(tmpPanel);
+        }
+      }
+
+      return panels;
     }
+
+    //void Borders(DataTree<object> param)
+    //{
+    //  int[] fughe = param.Branch(param.BranchCount - 1)[0].ToString().Split('-')[2].Split('.').Select(element => Convert.ToInt32(element)).ToArray();
+    //  //int a = Convert.ToInt32(param.Branch(param.BranchCount - 1)[0].ToString().Split('-')[2].Split('.')[1]);
+    //  //PolylineCurve curve = (PolylineCurve)param.Branch(param.BranchCount - 1)[1];
+    //  //Point3d tmpPoint = curve.PointAtStart;
+    //  //tmpPoint.Transform(Transform.Rotation(rotation[0], new Point3d(rotation[1], rotation[2], 0)));
+
+    //  //double[] x = new double[4];
+    //  //double[] z = new double[4];
+
+    //  //for (int i = 0; i < 4; i++)
+    //  //{
+    //  //  x[i] = curve.Point(i).X;
+    //  //  z[i] = curve.Point(i).Z;
+    //  //}
+
+    //  //zCoordinates.Insert(0, Math.Round(z.Min() + fughe[0]));
+    //  //xCoordinates.Insert(xCoordinates.Count, Math.Round(x.Max() - fughe[1]));
+    //  //zCoordinates.Insert(zCoordinates.Count, Math.Round(z.Max() - fughe[2]));
+    //  //xCoordinates.Insert(0, Math.Round(x.Min() + fughe[3]));
+    //}
 
     public void OrderOutput(List<PanelC41> panels)
     {
@@ -500,33 +550,6 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
           else panels[i + 1].type = "D";
         }
       }
-    }
-
-    public List<PanelC41> Panels(List<double> xCoordinates, List<double> zCoordinates)
-    {
-      List<PanelC41> panels = new List<PanelC41>();
-
-      for (int i = 0; i < zCoordinates.Count; i += 2)
-      {
-        for (int j = 0; j < xCoordinates.Count; j += 2)
-        {
-          var points = new List<Point3d>
-            {
-              new Point3d(xCoordinates[j], 0, zCoordinates[i]),
-              new Point3d(xCoordinates[j + 1], 0, zCoordinates[i]),
-              new Point3d(xCoordinates[j + 1], 0, zCoordinates[i + 1]),
-              new Point3d(xCoordinates[j], 0, zCoordinates[i + 1]),
-              new Point3d(xCoordinates[j], 0, zCoordinates[i])
-              };
-
-          pts.AddRange(points.GetRange(0, 4));
-
-          PanelC41 tmpPanel = new PanelC41(points, obs);
-          if (!tmpPanel.crossed) panels.Add(tmpPanel);
-        }
-      }
-
-      return panels;
     }
 
     public List<Polyline> Plines(List<PanelC41> panels)
@@ -625,6 +648,26 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       Name();
       Detached(obs.Branch(1));
       InterceptedPanelVarious(obs.Branch(3));
+
+      toExcel = type + "," + width.ToString() + "," + height.ToString() +
+        "," + type + "." + width.ToString() + "." + height.ToString();
+    }
+
+    public PanelC41(List<Point3d> list)
+    {
+      borderUp = 1;
+      borderDown = 2;
+      hookUp = 3;
+      hookDown = 4;
+      type = "A";
+
+      crossed = false;
+
+      pl = new Polyline(list);
+      firstCorner[0] = pl[0].X;
+      firstCorner[1] = pl[0].Y;
+
+      Name();
 
       toExcel = type + "," + width.ToString() + "," + height.ToString() +
         "," + type + "." + width.ToString() + "." + height.ToString();
