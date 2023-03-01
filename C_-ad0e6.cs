@@ -66,6 +66,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
     plines = new DataTree<Polyline>();
     this.archive = new List<string>();
     this.names = new DataTree<string>();
+    types = new DataTree<string>();
     toExport = new List<string>();
     normals = new List<Vector3d>();
 
@@ -75,16 +76,17 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       panelC41s.AddRange(grid.panels);
       plines.AddRange(grid.Plines(grid.panels), new GH_Path(i));
       this.names.AddRange(grid.NameTags(grid.panels), new GH_Path(i));
+      types.AddRange(grid.TypeTags(grid.panels), new GH_Path(i));
       toExport.AddRange(grid.ToExport(grid.panels));
       normals.Add(grid.normal);
     }
     this.archive.AddRange(ArchiveTypes(panelC41s));
 
     pl = plines;
-    //layerNames = facade.grids[0].TypeTags(panelC41s);
+    layerNames = types;
     names = this.names;
     archive = this.archive;
-    //freeTag = facade.grids[0].FreeTag(panelC41s);
+    freeTag = facade.angles;
     export = toExport;
     PanelC41 = normals;
   }
@@ -96,6 +98,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
   public List<PanelC41> panelC41s;
   public DataTree<Polyline> plines;
   public DataTree<string> names;
+  public DataTree<string> types;
   public List<string> toExport;
   public List<Vector3d> normals;
 
@@ -107,6 +110,8 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
     public List<Grid3d> grids;
     public DataTree<PanelC41> panelsTree;
     List<int> gridCount;
+    public List<Point3d> points;
+    public List<double> angles;
 
     //contructor
     public Facade(DataTree<object> input, DataTree<object> obs)
@@ -144,6 +149,8 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       }
 
       gridCount = counter;
+      //points = FacadeEdges(input);
+      angles = FacadeEdges(input);
     }
 
     public List<int> FacadeCount(DataTree<object> input)
@@ -164,6 +171,40 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       }
 
       return k;
+    }
+
+    public List<double> FacadeEdges(DataTree<object> input)
+    {
+      List<object> borders = new List<object>();
+      for (int i = 0; i < input.BranchCount; i++)
+      {
+        if (input.Branch(i)[0].ToString().Split('-')[1].Contains("border"))
+        {
+          borders.Add(input.Branch(i)[1]);
+        }
+      }
+
+      List<Polyline> polylines = borders.Select(pline => (PolylineCurve)pline).ToList().Select(pline => pline.ToPolyline()).ToList();
+      List<Point3d> pts = new List<Point3d>();
+      foreach (Polyline polyline in polylines)
+      {
+        var tmp = polyline.Select(pl => pl).ToList();
+        tmp.OrderBy(p => p.Z);
+        tmp.RemoveRange(2, 3);
+        pts.AddRange(tmp);
+      }
+
+      List<double> list = new List<double> { -1 };
+      for (int i = 1; i < pts.Count - 1; i += 2)
+      {
+        if (Math.Abs(pts[i].X - pts[i + 1].X) < 0.01 && Math.Abs(pts[i].Y - pts[i + 1].Y) < 0.01)
+        {
+          
+          list.Add(Vector3d.VectorAngle(new Vector3d(pts[i + 1] - pts[i]),new Vector3d(pts[i-1] - pts[i])));
+        }
+      }
+      list.Add(-1);
+      return list;
     }
   }
 
@@ -214,7 +255,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       border = new Polyline(list.GetRange(0, 2));
       height = new Polyline(new List<Point3d> { list[3], list[0] });
 
-      normal = Vector3d.CrossProduct(new Vector3d(border[1]- border[0]), new Vector3d(height[0]- height[1]));
+      normal = Vector3d.CrossProduct(new Vector3d(border[1] - border[0]), new Vector3d(height[0] - height[1]));
     }
 
     public void OrderLines(DataTree<object> param)
