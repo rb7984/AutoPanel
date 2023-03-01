@@ -63,23 +63,30 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
     facade = new Facade(x, y);
 
     panelC41s = new List<PanelC41>();
-    plines = new List<Polyline>();
+    plines = new DataTree<Polyline>();
     this.archive = new List<string>();
+    this.names = new DataTree<string>();
+    toExport = new List<string>();
+    normals = new List<Vector3d>();
+
     foreach (Grid3d grid in facade.grids)
     {
+      int i = facade.grids.IndexOf(grid);
       panelC41s.AddRange(grid.panels);
-      plines.AddRange(grid.Plines(grid.panels));
+      plines.AddRange(grid.Plines(grid.panels), new GH_Path(i));
+      this.names.AddRange(grid.NameTags(grid.panels), new GH_Path(i));
+      toExport.AddRange(grid.ToExport(grid.panels));
+      normals.Add(grid.normal);
     }
     this.archive.AddRange(ArchiveTypes(panelC41s));
 
-    A = facade.gridCount;
     pl = plines;
     //layerNames = facade.grids[0].TypeTags(panelC41s);
-    //names = facade.grids[0].NameTags(panelC41s);
+    names = this.names;
     archive = this.archive;
     //freeTag = facade.grids[0].FreeTag(panelC41s);
-    //export = facade.grids[0].toExport(panelC41s);
-    //PanelC41 = plines;
+    export = toExport;
+    PanelC41 = normals;
   }
   #endregion
   #region Additional
@@ -87,8 +94,10 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
   // fields
   public Facade facade;
   public List<PanelC41> panelC41s;
-  public List<Polyline> plines;
-  public List<string> names;
+  public DataTree<Polyline> plines;
+  public DataTree<string> names;
+  public List<string> toExport;
+  public List<Vector3d> normals;
 
   public List<string> archive;
 
@@ -97,7 +106,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
     //fields
     public List<Grid3d> grids;
     public DataTree<PanelC41> panelsTree;
-    public List<int> gridCount;
+    List<int> gridCount;
 
     //contructor
     public Facade(DataTree<object> input, DataTree<object> obs)
@@ -119,16 +128,16 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         {
           tmp.AddRange(input.Branch(j), new GH_Path(count)); count++;
         }
+        pointer += counter[i];
 
         var k = i * 4;
         count = 0;
-        for (int j = k; j < 4; j++)
+        for (int j = k; j < k + 4; j++)
         {
           tmpObs.AddRange(obs.Branch(j), new GH_Path(count));
           count++;
         }
 
-        pointer += counter[i];
         Grid3d tmpGrid = new Grid3d(tmp, tmpObs);
         grids.Add(tmpGrid);
         //panelsTree.AddRange(tmpGrid.panels, new GH_Path(i - 1));
@@ -161,10 +170,11 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
   public class Grid3d
   {
     DataTree<object> param;
-    DataTree<Polyline> obs;
-    //readonly double[] rotation;
+    public DataTree<Polyline> obs;
+
     public Polyline border;
     public Polyline height;
+    public Vector3d normal;
 
     // tutte le coordinate delle fughe in X e Z
     List<Point3d> pointCoordinates;
@@ -190,7 +200,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
       OrderOutput(panels);
 
-      //PostPanels(panels);
+      PostPanels(panels);
     }
 
     public void BorderRotation(object a)
@@ -203,6 +213,8 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
       border = new Polyline(list.GetRange(0, 2));
       height = new Polyline(new List<Point3d> { list[3], list[0] });
+
+      normal = Vector3d.CrossProduct(new Vector3d(border[1]- border[0]), new Vector3d(height[0]- height[1]));
     }
 
     public void OrderLines(DataTree<object> param)
@@ -256,15 +268,26 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       ztmp.Insert(0, t.Min());
       ztmp.Add(t.Max());
 
-      ptmp = ptmp.OrderBy(point => point.X).ToList();
-      ptmp.RemoveAt(0);
-      ptmp.RemoveAt(ptmp.Count - 1);
-      ptmp.AddRange(new List<Point3d> { border.PointAt(0), border.PointAt(1) });
+      if (Math.Abs(border[1].X - border[0].X) > 0.01)
+      {
+        ptmp = ptmp.OrderBy(point => point.X).ToList();
+        ptmp.RemoveAt(0);
+        ptmp.RemoveAt(ptmp.Count - 1);
+        ptmp.AddRange(new List<Point3d> { border.PointAt(0), border.PointAt(1) });
 
-      pointCoordinates = ptmp.OrderBy(point => point.X).ToList();
+        pointCoordinates = ptmp.OrderBy(point => point.X).ToList();
+      }
+      else
+      {
+        ptmp = ptmp.OrderBy(point => point.Y).ToList();
+        ptmp.RemoveAt(0);
+        ptmp.RemoveAt(ptmp.Count - 1);
+        ptmp.AddRange(new List<Point3d> { border.PointAt(0), border.PointAt(1) });
+
+        pointCoordinates = ptmp.OrderBy(point => point.Y).ToList();
+      }
+
       zCoordinates = ztmp;
-
-      //Borders(param);
     }
 
     public List<PanelC41> Panels(List<Point3d> pointCoordinates, List<double> zCoordinates)
@@ -285,7 +308,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
           pts.AddRange(points.GetRange(0, 4));
 
-          PanelC41 tmpPanel = new PanelC41(points);
+          PanelC41 tmpPanel = new PanelC41(points, obs);
           if (!tmpPanel.crossed) panels.Add(tmpPanel);
         }
       }
@@ -295,8 +318,15 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
     public void OrderOutput(List<PanelC41> panels)
     {
-      List<PanelC41> tmp = panels.OrderBy(a => a.firstCorner[0]).ThenBy(b => b.firstCorner[1]).ToList();
-
+      List<PanelC41> tmp;
+      if (Math.Abs(border[1].X - border[0].X) > 0.01)
+      {
+        tmp = panels.OrderBy(a => a.firstCorner[0]).ThenBy(b => b.firstCorner[2]).ToList();
+      }
+      else
+      {
+        tmp = panels.OrderBy(a => a.firstCorner[1]).ThenBy(b => b.firstCorner[2]).ToList();
+      }
       this.panels.Clear();
 
       this.panels.AddRange(tmp);
@@ -353,7 +383,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       return types;
     }
 
-    public List<string> toExport(List<PanelC41> panels)
+    public List<string> ToExport(List<PanelC41> panels)
     {
       List<string> export = panels.Select(i => i.toExcel).ToList();
       export.Insert(0, "Type,Width,Heigh,Marca");
@@ -377,7 +407,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
     public bool crossed;
     public string type;
     public string name;
-    public double[] firstCorner = new double[2];
+    public double[] firstCorner = new double[3];
 
     public string toExcel;
 
@@ -395,6 +425,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       pl = new Polyline(list);
       firstCorner[0] = pl[0].X;
       firstCorner[1] = pl[0].Y;
+      firstCorner[2] = pl[0].Z;
 
       int[] i = Intercept(obs);
 
@@ -435,6 +466,33 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         "," + type + "." + width.ToString() + "." + height.ToString();
     }
 
+    public int[] Intercept(DataTree<Polyline> obs)
+    {
+      // ora non funziona per ostacoli multipli che intersecano oggetti
+      int b = -1;
+      int c = -1;
+
+      // Branch(0) windows. Polylines centrate sul pannello verticalmente
+      for (int i = 0; i < obs.Branch(0).Count; i++)
+      {
+        var tmp = Intersection.CurveCurve(pl.ToPolylineCurve(), obs.Branch(0)[i].ToPolylineCurve(), 0.1, 0.1).Count;
+        //counter += tmp;
+        if (tmp != 0) b = i;
+      }
+
+      // Branch(2) pavements. Polylines centrate sul pannello orizzontalmente
+      for (int i = 0; i < obs.Branch(2).Count; i++)
+      {
+        var tmp = Intersection.CurveCurve(pl.ToPolylineCurve(), obs.Branch(2)[i].ToPolylineCurve(), 0.1, 0.1).Count;
+        //counter += tmp;
+        if (tmp != 0) c = i;
+      }
+
+      if (b < 0 && c < 0) crossed = false;
+      else crossed = true;
+      return new int[] { b, c };
+    }
+
     public void Name()
     {
       width = Math.Round(pl[0].DistanceTo(pl[1]));
@@ -442,69 +500,42 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       name = width.ToString() + '-' + height.ToString();
     }
 
-    public int[] Intercept(DataTree<Polyline> obs)
-    {
-      // ora non funziona per ostacoli multipli che intersecano oggetti
-
-      int counter = 0;
-      int b = -1;
-      int c = -1;
-
-      for (int i = 0; i < obs.Branch(0).Count; i++)
-      {
-        var tmp = Intersection.CurveCurve(pl.ToPolylineCurve(), obs.Branch(0)[i].ToPolylineCurve(), 0.1, 0.1).Count;
-        counter += tmp;
-        if (tmp != 0) b = i;
-      }
-
-      for (int i = 0; i < obs.Branch(2).Count; i++)
-      {
-        var tmp = Intersection.CurveCurve(pl.ToPolylineCurve(), obs.Branch(2)[i].ToPolylineCurve(), 0.1, 0.1).Count;
-        counter += tmp;
-        if (tmp != 0) c = i;
-      }
-
-      if (counter == 0) crossed = false;
-      else crossed = true;
-      return new int[] { b, c };
-    }
-
     public bool InterceptedPanelVertical(List<Polyline> obs, int i, double fuga)
     {
       // Funziona solo per finestre centrate sui pannelli
-      // Viene considerata solo la Y quindi
+      // Viene considerata solo la Z quindi
 
-      double[] yObs = new double[] { obs[i][0].Y, obs[i][1].Y, obs[i][2].Y };
-      double[] y = new double[] { pl[0].Y, pl[1].Y, pl[2].Y };
+      double[] zObs = new double[] { obs[i][0].Z, obs[i][1].Z, obs[i][2].Z };
+      double[] z = new double[] { pl[0].Z, pl[1].Z, pl[2].Z };
 
-      if (yObs.Max() >= y.Max() && yObs.Min() <= y.Min())
+      if (zObs.Max() >= z.Max() && zObs.Min() <= z.Min())
       {
         return true;
       }
-      else if (y.Max() > yObs.Max())
+      else if (z.Max() > zObs.Max())
       {
-        double newY = yObs.Max();
+        double newZ = zObs.Max();
         List<Point3d> tmp = new List<Point3d>()
         {
-          new Point3d(pl[0].X, newY + fuga,0),
-          new Point3d(pl[1].X, newY+ fuga,0),
+          new Point3d(pl[0].X, pl[0].Y, newZ+ fuga),
+          new Point3d(pl[1].X, pl[1].Y, newZ+ fuga),
           new Point3d(pl[2]),
           new Point3d(pl[3]),
-          new Point3d(pl[4].X, newY+ fuga,0),
+          new Point3d(pl[4].X, pl[4].Y, newZ+ fuga),
         };
 
         pl = new Polyline(tmp);
         return false;
       }
-      else if (y.Min() < yObs.Min())
+      else if (z.Min() < zObs.Min())
       {
-        double newY = yObs.Min();
+        double newZ = zObs.Min();
         List<Point3d> tmp = new List<Point3d>()
         {
           new Point3d(pl[0]),
           new Point3d(pl[1]),
-          new Point3d(pl[2].X, newY - fuga,0),
-          new Point3d(pl[3].X, newY - fuga,0),
+          new Point3d(pl[2].X, pl[2].Y, newZ - fuga),
+          new Point3d(pl[3].X, pl[3].Y, newZ - fuga),
           new Point3d(pl[4]),
         };
 
@@ -519,40 +550,56 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
     public bool InterceptedPanelHorizontal(List<Polyline> obs, int i, double fuga)
     {
       // Funziona solo per rettangoli orizzontali centrati sui pannelli
-      // Viene considerata solo la X quindi
+      // Viene considerata solo X-Y quindi
 
-      double[] xObs = new double[] { obs[i][0].X, obs[i][1].X, obs[i][2].X };
-      double[] x = new double[] { pl[0].X, pl[1].X, pl[2].X };
+      List<Point3d> p = new List<Point3d> { pl[0], pl[1] };
+      List<Point3d> pObs = new List<Point3d> { obs[i][0], obs[i][1], obs[i][2], obs[i][3] };
+      pObs.OrderBy(point => point.Z);
+      pObs.RemoveRange(2, 2);
 
-      if (xObs.Max() >= x.Max() && xObs.Min() <= x.Min())
+      double[] compare = new double[4];
+
+      if (Math.Abs(pl[1].X - pl[0].X) > 0.01)
+      {
+        pObs.OrderBy(point => point.X);
+        compare = new double[] { pl[0].X, pl[1].X, pObs[0].X, pObs[1].X };
+      }
+      else
+      {
+        pObs.OrderBy(point => point.Y);
+        compare = new double[] { pl[0].Y, pl[1].Y, pObs[0].Y, pObs[1].Y };
+      }
+
+      // Obs bigger
+      if (compare[3] >= compare[1] && compare[2] <= compare[0])
       {
         return true;
       }
-
-      else if (x.Max() > xObs.Max())
+      // Obs from the left
+      else if (compare[1] > compare[3])
       {
-        double newX = xObs.Max();
+        //double newX = xObs.Max();
         List<Point3d> tmp = new List<Point3d>()
         {
-          new Point3d(newX + fuga, pl[0].Y, 0),
+          new Point3d(pObs[1].X, pObs[1].Y, pl[0].Z),
           new Point3d(pl[1]),
           new Point3d(pl[2]),
-          new Point3d(newX + fuga, pl[3].Y,0 ),
-          new Point3d(newX + fuga, pl[0].Y, 0)
+          new Point3d(pObs[1].X, pObs[1].Y, pl[3].Z),
+          new Point3d(pObs[1].X, pObs[1].Y, pl[4].Z)
         };
 
         pl = new Polyline(tmp);
         return false;
       }
-
-      else if (x.Min() < xObs.Min())
+      // Obs from the right
+      else if (compare[0] < compare[2])
       {
-        double newX = xObs.Min();
+        //double newX = xObs.Min();
         List<Point3d> tmp = new List<Point3d>()
         {
           new Point3d(pl[0]),
-          new Point3d(newX - fuga, pl[1].Y, 0),
-          new Point3d(newX - fuga, pl[2].Y, 0),
+          new Point3d(pObs[0].X, pObs[0].Y, pl[1].Z),
+          new Point3d(pObs[0].X, pObs[0].Y, pl[2].Z),
           new Point3d(pl[3]),
           new Point3d(pl[0])
         };
@@ -568,28 +615,46 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
     public void InterceptedPanelVarious(List<Polyline> obs)
     {
       int counter = 0;
+      double yAxe = Math.Abs(pl[1].X - pl[0].X);
+      double[] h;
 
-      double[] x = new double[] { pl[0].X, pl[1].X };
-      double[] y = new double[] { pl[1].Y, pl[2].Y };
+      if (yAxe > 0.01)
+      {
+        h = new double[] { pl[0].X, pl[1].X };
+      }
+      else
+      {
+        h = new double[] { pl[0].Y, pl[1].Y };
+      }
+
+      double[] z = new double[] { pl[1].Z, pl[2].Z };
 
       for (int i = 0; i < obs.Count; i++)
       {
         // Pannelli intersecati da un ostacolo
         var tmp = Intersection.CurveCurve(pl.ToPolylineCurve(), obs[i].ToPolylineCurve(), 0.1, 0.1).Count;
         counter += tmp;
+        double[] hObs;
+        if (yAxe > 0.01)
+        {
+          hObs = new double[] { obs[i][0].X, obs[i][1].X };
+        }
+        else
+        {
+          hObs = new double[] { obs[i][0].Y, obs[i][1].Y };
+        }
 
-        double[] xObs = new double[] { obs[i][0].X, obs[i][1].X };
-        double[] yObs = new double[] { obs[i][1].Y, obs[i][2].Y };
+        double[] zObs = new double[] { obs[i][1].Z, obs[i][2].Z };
 
         // Pannelli C circondati
-        if (xObs[1] > x[1] && x[0] > xObs[0] && yObs[1] > y[1] && y[0] > yObs[0])
+        if (hObs[1] > h[1] && h[0] > hObs[0] && zObs[1] > z[1] && z[0] > zObs[0])
         {
           counter++;
           crossed = true;
         }
 
         // Pannelli C con un foro
-        if (xObs[1] < x[1] && x[0] < xObs[0] && yObs[1] < y[1] && y[0] < yObs[0]) counter++;
+        if (hObs[1] < h[1] && h[0] < hObs[0] && zObs[1] < z[1] && z[0] < zObs[0]) counter++;
       }
 
       if (counter > 0)
