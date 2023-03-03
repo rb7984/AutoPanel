@@ -58,7 +58,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
   /// they will have a default value.
   /// </summary>
   #region Runscript
-  private void RunScript(DataTree<object> x, DataTree<object> y, List<Polyline> z, ref object A, ref object pl, ref object layerNames, ref object names, ref object archive, ref object freeTag, ref object export, ref object PanelC41)
+  private void RunScript(DataTree<object> x, DataTree<object> y, List<Polyline> z, ref object A, ref object B, ref object pl, ref object layerNames, ref object names, ref object archive, ref object freeTag, ref object export, ref object PanelC41)
   {
     facade = new Facade(x, y, z);
 
@@ -69,6 +69,8 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
     types = new DataTree<string>();
     toExport = new List<string>();
     normals = new List<Vector3d>();
+    //DELETE
+    borders = new List<Polyline>();
 
     foreach (Grid3d grid in facade.grids)
     {
@@ -79,9 +81,13 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       types.AddRange(grid.TypeTags(grid.panels), new GH_Path(i));
       toExport.AddRange(grid.ToExport(grid.panels));
       normals.Add(grid.normal);
+
+      borders.Add(grid.border);
     }
     this.archive.AddRange(ArchiveTypes(panelC41s));
 
+    A = facade.angles;
+    B = facade.baseLines;
     pl = plines;
     layerNames = types;
     names = this.names;
@@ -104,21 +110,25 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
   public List<string> archive;
 
+  //DELETE
+  public List<Polyline> borders;
+
   public class Facade
   {
     //fields
     public List<Grid3d> grids;
-    public DataTree<PanelC41> panelsTree;
+    //public DataTree<PanelC41> panelsTree;
     public List<Point3d> points;
-    //DELETE
     public List<double> angles;
-    public List<Polyline> baseLine;
+    public List<Polyline> baseLines;
+    //DELETE
+    public List<Polyline> baseLine; //?? a cosa serve avere in memoria una lista di polilinee unica?
 
     //contructor
     public Facade(DataTree<object> input, DataTree<object> obs, List<Polyline> baseline)
     {
       grids = new List<Grid3d>();
-      panelsTree = new DataTree<PanelC41>();
+      //panelsTree = new DataTree<PanelC41>();
 
       var counter = FacadeCount(input);
       var pointer = 0;
@@ -148,7 +158,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         //panelsTree.AddRange(tmpGrid.panels, new GH_Path(i - 1));
       }
 
-      baseLine = baseline;
+      FillAngles(baseline);
 
       for (int i = 0; i < grids.Count; i++)
       {
@@ -176,124 +186,85 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       return k;
     }
 
+    public void FillAngles(List<Polyline> baseline)
+    {
+      baseLine = new List<Polyline>();
+      baseLines = new List<Polyline>();
+      angles = new List<double>();
+
+      foreach (Polyline p in baseline)
+      {
+        baseLine.Add(new Polyline(p.Select(point => point).ToList()));
+        angles.Add(2 * Math.PI);
+
+        for (int i = 1; i < p.Count - 1; i++)
+        {
+          baseLines.Add(new Polyline(new List<Point3d> { p[i - 1], p[i] }));
+
+          if (Intersection.CurveCurve(new Line(p[i - 1], p[i + 1]).ToNurbsCurve(),
+            new Line(p[i], grids[i - 1].normal, 100000).ToNurbsCurve(), 0.1, 0.1).Count > 0)
+          {
+            angles.AddRange(Enumerable.Repeat(Vector3d.VectorAngle(new Vector3d(p[i - 1] - p[i]), new Vector3d(p[i + 1] - p[i])), 2));
+          }
+          else
+          {
+            angles.AddRange(Enumerable.Repeat(2 * Math.PI - Vector3d.VectorAngle(new Vector3d(p[i - 1] - p[i]), new Vector3d(p[i + 1] - p[i])), 2));
+          }
+        }
+        baseLines.Add(new Polyline(new List<Point3d> { p[p.Count - 2], p[p.Count - 1] }));
+
+        angles.Add(2 * Math.PI);
+      }
+    }
+
     public void PostPanels(Grid3d grid)
     {
       int fugaMax = 16;
+      int[] a;
+      if (baseLines[grids.IndexOf(grid)][1].X - baseLines[grids.IndexOf(grid)][0].X > 0) a = new int[] { 0, 1 };
+      else a = new int[] { 1, 0 };
+
       for (int i = 0; i < grid.panels.Count; i++)
       {
-        if (Math.Abs(grid.panels[i].pl[0].X - grid.border[0].X) < fugaMax && Math.Abs(grid.panels[i].pl[0].Y - grid.border[0].Y) < fugaMax)
+        ////BOTTOM
+        //if (Math.Abs(grid.panels[i].pl[0].Z - grid.border[0].Z) < fugaMax)
+        //{
+        //  grid.panels[i].type = "E";
+        //}
+        ////TOP
+        //if (grid.height[0].Z - Math.Abs(grid.panels[i].pl[3].Z) < fugaMax)
+        //{
+        //  grid.panels[i].type = "E";
+        //}
+        //LEFT
+        if (Math.Abs(grid.panels[i].pl[0].X - grid.border[a[0]].X) < fugaMax && Math.Abs(grid.panels[i].pl[0].Y - grid.border[a[0]].Y) < fugaMax)
         {
-          grid.panels[i].type = "E";
+          grid.panels[i].type = BorderPanel(grids.IndexOf(grid), 0);
         }
-        if (Math.Abs(grid.panels[i].pl[0].Z - grid.border[0].Z) < fugaMax)
+        //RIGHT
+        if (Math.Abs(grid.panels[i].pl[1].X - grid.border[a[1]].X) < fugaMax && Math.Abs(grid.panels[i].pl[1].Y - grid.border[a[1]].Y) < fugaMax)
         {
-          grid.panels[i].type = "E";
-        }
-        if (Math.Abs(grid.panels[i].pl[1].X - grid.border[1].X) < fugaMax && Math.Abs(grid.panels[i].pl[1].Y - grid.border[1].Y) < fugaMax)
-        {
-          grid.panels[i].type = "E";
-        }
-        if (grid.height[0].Z - Math.Abs(grid.panels[i].pl[3].Z) < fugaMax)
-        {
-          grid.panels[i].type = "E";
+          grid.panels[i].type = BorderPanel(grids.IndexOf(grid), 1);
         }
       }
     }
 
-    //public List<double> FacadeEdges(DataTree<object> input)
-    //{
-    //  List<object> borders = new List<object>();
-    //  for (int i = 0; i < input.BranchCount; i++)
-    //  {
-    //    if (input.Branch(i)[0].ToString().Split('-')[1].Contains("border"))
-    //    {
-    //      borders.Add(input.Branch(i)[1]);
-    //    }
-    //  }
+    public string BorderPanel(int i, int a)
+    {
+      double angle = angles[(2 * i) + a];
 
-    //  List<Polyline> polylines = borders.Select(pline => (PolylineCurve)pline).ToList().Select(pline => pline.ToPolyline()).ToList();
-    //  List<Point3d> pts = new List<Point3d>();
-
-    //  foreach (Polyline polyline in polylines)
-    //  {
-    //    var tmp = polyline.Select(pl => pl).ToList();
-    //    tmp.OrderBy(p => p.Z);
-    //    tmp.RemoveRange(2, 3);
-    //    pts.AddRange(tmp);
-    //  }
-
-    //  List<double> list = new List<double>();
-    //  for (int i = 1; i < pts.Count - 1; i += 2)
-    //  {
-    //    if (Math.Abs(pts[i].X - pts[i + 1].X) < 0.01 && Math.Abs(pts[i].Y - pts[i + 1].Y) < 0.01)
-    //    {
-    //      list.Add(Vector3d.VectorAngle(new Vector3d(pts[i - 1] - pts[i]), new Vector3d(pts[i + 2] - pts[i])));
-    //    }
-    //  }
-
-    //  return list;
-    //}
-
-    //public Polyline BaseLine(DataTree<object> input)
-    //{
-    //  List<Point3d> line = new List<Point3d>();
-    //  List<object> borders = new List<object>();
-    //  for (int i = 0; i < input.BranchCount; i++)
-    //  {
-    //    if (input.Branch(i)[0].ToString().Split('-')[1].Contains("border"))
-    //    {
-    //      borders.Add(input.Branch(i)[1]);
-    //    }
-    //  }
-
-    //  List<Polyline> polylines = borders.Select(pline => (PolylineCurve)pline).ToList().Select(pline => pline.ToPolyline()).ToList();
-    //  List<Point3d> pts = new List<Point3d>();
-
-    //  foreach (Polyline polyline in polylines)
-    //  {
-    //    var tmp = polyline.Select(pl => pl).ToList();
-    //    tmp.OrderBy(p => p.Z);
-    //    tmp.RemoveRange(2, 3);
-    //    pts.AddRange(tmp);
-    //  }
-
-    //  //Baseline Making
-
-    //  if (pts[0].DistanceTo(pts[2]) > pts[1].DistanceTo(pts[2]))
-    //  {
-    //    line.Add(pts[0]);
-    //  }
-    //  else
-    //  {
-    //    line.Add(pts[1]);
-    //  }
-
-    //  for (int i = 1; i < pts.Count - 2; i++)
-    //  {
-    //    if (Math.Abs(pts[i].X - pts[i + 1].X) < 0.01 && Math.Abs(pts[i].Y - pts[i + 1].Y) < 0.01)
-    //    {
-    //      line.Add(pts[i]);
-    //    }
-    //    else if (Math.Abs(pts[i].X - pts[i + 2].X) < 0.01 && Math.Abs(pts[i].Y - pts[i + 2].Y) < 0.01)
-    //    {
-    //      line.Add(pts[i]);
-    //    }
-    //    else if (Math.Abs(pts[i - 1].X - pts[i + 1].X) < 0.01 && Math.Abs(pts[i - 1].Y - pts[i + 1].Y) < 0.01)
-    //    {
-    //      line.Add(pts[i - 1]);
-    //    }
-    //    else if (Math.Abs(pts[i - 1].X - pts[i + 2].X) < 0.01 && Math.Abs(pts[i - 1].Y - pts[i + 2].Y) < 0.01)
-    //    {
-    //      line.Add(pts[i - 1]);
-    //    }
-    //    else
-    //    {
-    //      line.Add(pts[i]);
-    //    }
-    //  }
-
-    //  return new Polyline(line);
-    //}
+      if (angle == 2 * Math.PI)
+      {
+        if (a == 0) return "E";
+        else return "F";
+      }
+      else
+      {
+        angle = (180 / Math.PI) * angle;
+        if (a == 0) return "H" +"."+ Math.Round(angle).ToString();
+        else return "G" + "." + Math.Round(angle).ToString();
+      }
+    }
   }
 
   public class Grid3d
@@ -696,7 +667,6 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         if (!SameSign(t0, t1))
         {
           pObs = pObs.OrderBy(point => point.X).ToList();
-
         }
         compare = new double[] { pl[0].X, pl[1].X, pObs[0].X, pObs[1].X };
       }
@@ -748,82 +718,6 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
       else { return false; }
     }
-
-    //public bool InterceptedPanelHorizontal(List<Polyline> obs, int i, double fuga)
-    //{
-    //  // Funziona solo per rettangoli orizzontali centrati sui pannelli
-    //  // Viene considerata solo X-Y quindi
-
-    //  List<Point3d> p = new List<Point3d> { pl[0], pl[1] };
-    //  List<Point3d> pObs = new List<Point3d> { obs[i][0], obs[i][1], obs[i][2], obs[i][3] };
-    //  pObs.OrderBy(point => point.Z);
-    //  pObs.RemoveRange(2, 2);
-
-    //  double[] compare = new double[4];
-
-    //  if (Math.Abs(pl[1].X - pl[0].X) > 0.01)
-    //  {
-    //    if (pl[1].X - pl[0].X > 0)
-    //    {
-    //      pObs.OrderBy(point => point.X);
-    //      compare = new double[] { pl[0].X, pl[1].X, pObs[0].X, pObs[1].X };
-    //    }
-    //    else
-    //    {
-    //      pObs.OrderBy(point => point.X);
-    //      compare = new double[] { pl[1].X, pl[0].X, pObs[0].X, pObs[1].X };
-    //    }
-    //  }
-    //  else
-    //  {
-    //    pObs.OrderBy(point => point.Y);
-    //    compare = new double[] { pl[0].Y, pl[1].Y, pObs[0].Y, pObs[1].Y };
-    //  }
-
-    //  // Obs bigger // positive or negative for when the x or y swithcs to the negative side
-    //  bool positive = compare[3] >= compare[1] && compare[2] <= compare[0];
-    //  //bool negative = compare[3] <= compare[1] && compare[2] >= compare[0];
-    //  if (positive /*|| negative*/)
-    //  {
-    //    return true;
-    //  }
-
-    //  // Obs from the left
-
-    //  else if (compare[1] > compare[3])
-    //  {
-    //    List<Point3d> tmp = new List<Point3d>()
-    //    {
-    //      new Point3d(pObs[1].X, pObs[1].Y, pl[0].Z),
-    //      new Point3d(pl[1]),
-    //      new Point3d(pl[2]),
-    //      new Point3d(pObs[1].X, pObs[1].Y, pl[3].Z),
-    //      new Point3d(pObs[1].X, pObs[1].Y, pl[4].Z)
-    //    };
-
-    //    pl = new Polyline(tmp);
-    //    return false;
-    //  }
-
-    //  // Obs from the right
-    //  else if (compare[0] < compare[2])
-    //  {
-    //    List<Point3d> tmp = new List<Point3d>()
-    //    {
-    //      new Point3d(pl[0]),
-    //      new Point3d(pObs[0].X, pObs[0].Y, pl[1].Z),
-    //      new Point3d(pObs[0].X, pObs[0].Y, pl[2].Z),
-    //      new Point3d(pl[3]),
-    //      new Point3d(pl[0])
-    //    };
-
-    //    pl = new Polyline(tmp);
-
-    //    return false;
-    //  }
-
-    //  else { return false; }
-    //}
 
     public void InterceptedPanelVarious(List<Polyline> obs)
     {
@@ -941,11 +835,5 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
     return arc;
   }
-
-  public bool SameSign(double num1, double num2)
-  {
-    return num1 >= 0 && num2 >= 0 || num1 < 0 && num2 < 0;
-  }
-
   #endregion
 }
