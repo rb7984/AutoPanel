@@ -16,6 +16,7 @@ using Rhino.DocObjects;
 using Rhino.UI.Controls;
 using Grasshopper.Kernel.Types.Transforms;
 using System.Diagnostics;
+using Rhino.UI;
 
 
 /// <summary>
@@ -121,6 +122,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
     public List<Point3d> points;
     public List<double> angles;
     public List<Polyline> baseLines;
+
     //DELETE
     public List<Polyline> baseLine; //?? a cosa serve avere in memoria una lista di polilinee unica?
 
@@ -236,15 +238,18 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         //{
         //  grid.panels[i].type = "E";
         //}
+
         //LEFT
-        if (Math.Abs(grid.panels[i].pl[0].X - grid.border[a[0]].X) < fugaMax && Math.Abs(grid.panels[i].pl[0].Y - grid.border[a[0]].Y) < fugaMax)
+        if (Math.Abs(grid.panels[i].pl[0].X - baseLines[grids.IndexOf(grid)][a[0]].X) < fugaMax && Math.Abs(grid.panels[i].pl[0].Y - baseLines[grids.IndexOf(grid)][a[0]].Y) < fugaMax)
         {
-          grid.panels[i].type = BorderPanel(grids.IndexOf(grid), 0);
+          if (grid.panels[i].type == "A*C") grid.panels[i].type = "C*" + BorderPanel(grids.IndexOf(grid), a[0]);
+          else grid.panels[i].type =  BorderPanel(grids.IndexOf(grid), a[0]);
         }
         //RIGHT
-        if (Math.Abs(grid.panels[i].pl[1].X - grid.border[a[1]].X) < fugaMax && Math.Abs(grid.panels[i].pl[1].Y - grid.border[a[1]].Y) < fugaMax)
+        if (Math.Abs(grid.panels[i].pl[1].X - baseLines[grids.IndexOf(grid)][a[1]].X) < fugaMax && Math.Abs(grid.panels[i].pl[1].Y - baseLines[grids.IndexOf(grid)][a[1]].Y) < fugaMax)
         {
-          grid.panels[i].type = BorderPanel(grids.IndexOf(grid), 1);
+          if (grid.panels[i].type == "A*C") grid.panels[i].type = "C*" + BorderPanel(grids.IndexOf(grid), a[0]);
+          else grid.panels[i].type = BorderPanel(grids.IndexOf(grid), a[1]);
         }
       }
     }
@@ -258,10 +263,19 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         if (a == 0) return "E";
         else return "F";
       }
+      // I and J Panels
+      else if (grids[i].monopanel)
+      {
+        angle = (180 / Math.PI) * angle;
+        angle = (360 - angle) / 2;
+        if (a == 0) return "J" + "." + Math.Round(angle).ToString();
+        else return "I" + "." + Math.Round(angle).ToString();
+      }
       else
       {
         angle = (180 / Math.PI) * angle;
-        if (a == 0) return "H" +"."+ Math.Round(angle).ToString();
+        angle = (360 - angle) / 2;
+        if (a == 0) return "H" + "." + Math.Round(angle).ToString();
         else return "G" + "." + Math.Round(angle).ToString();
       }
     }
@@ -275,6 +289,8 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
     public Polyline border;
     public Polyline height;
     public Vector3d normal;
+
+    public bool monopanel;
 
     // tutte le coordinate delle fughe in X e Z
     List<Point3d> pointCoordinates;
@@ -319,6 +335,8 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
     public void OrderLines(DataTree<object> param)
     {
+      int verticalPanelCount = 0;
+
       List<double> xtmp = new List<double>();
       List<Point3d> ptmp = new List<Point3d>();
       List<double> ztmp = new List<double>();
@@ -344,6 +362,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
         else if (dir == 'v')
         {
+          verticalPanelCount += param.Branch(i).Count;
           // start at j = 1 perchè la prima linea è il nome del layer
           for (int j = 1; j < param.Branch(i).Count; j++)
           {
@@ -388,6 +407,9 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       }
 
       zCoordinates = ztmp;
+
+      if (verticalPanelCount >2) monopanel = false;
+      else monopanel = true;
     }
 
     public List<PanelC41> Panels(List<Point3d> pointCoordinates, List<double> zCoordinates)
@@ -438,7 +460,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       {
         if (panels[i].type == "B" || panels[i].type == "B*C")
         {
-          if (panels[i + 1].type == "C") panels[i + 1].type = "D*C";
+          if (panels[i + 1].type == "C" || panels[i + 1].type == "A*C") panels[i + 1].type = "D*C";
           else panels[i + 1].type = "D";
         }
       }
@@ -478,7 +500,8 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
     public List<string> TypeTags(List<PanelC41> panels)
     {
-      List<string> types = panels.Select(i => i.type).ToList();
+      //List<string> types = panels.Select(i => i.type).ToList();
+      List<string> types = panels.Select(i => i.type.Split('.')[0]).ToList();
 
       return types;
     }
@@ -769,8 +792,8 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
       if (counter > 0)
       {
-        if (type == "A") type = "C";
-        else type += "*C";
+        //if (type == "A") type = "C";
+        /*else*/ type += "*C";
       }
     }
 
@@ -822,7 +845,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
     List<string> list;
     var orderedPanels = panelC41s.OrderBy(panelC41 => panelC41.type);
 
-    list = orderedPanels.Select(x => x.type).ToList();
+    list = orderedPanels.Select(x => x.type.Split('.')[0]).ToList();
 
     List<string> arc = new List<string> { list[0] };
     for (int i = 1; i < list.Count; i++)
