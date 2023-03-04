@@ -135,6 +135,17 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       var counter = FacadeCount(input);
       var pointer = 0;
 
+      //DELETE //Sostituisce funzione FillAngles() ma se messa prima del for loop rompe
+      List<Polyline> bL = new List<Polyline>();
+      foreach (Polyline p in baseline)
+      {
+        for (int i = 0; i < p.Count - 1; i++)
+        {
+          bL.Add(new Polyline(new List<Point3d> { p[i], p[i+1] }));
+        }
+      }
+      // END DELETE
+
       for (int i = 0; i < counter.Count; i++)
       {
         DataTree<object> tmp = new DataTree<object>();
@@ -155,7 +166,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
           count++;
         }
 
-        Grid3d tmpGrid = new Grid3d(tmp, tmpObs);
+        Grid3d tmpGrid = new Grid3d(tmp, tmpObs, new Vector3d(bL[i][1]- bL[i][0]));
         grids.Add(tmpGrid);
         //panelsTree.AddRange(tmpGrid.panels, new GH_Path(i - 1));
       }
@@ -243,7 +254,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         if (Math.Abs(grid.panels[i].pl[0].X - baseLines[grids.IndexOf(grid)][a[0]].X) < fugaMax && Math.Abs(grid.panels[i].pl[0].Y - baseLines[grids.IndexOf(grid)][a[0]].Y) < fugaMax)
         {
           if (grid.panels[i].type == "A*C") grid.panels[i].type = "C*" + BorderPanel(grids.IndexOf(grid), a[0]);
-          else grid.panels[i].type =  BorderPanel(grids.IndexOf(grid), a[0]);
+          else grid.panels[i].type = BorderPanel(grids.IndexOf(grid), a[0]);
         }
         //RIGHT
         if (Math.Abs(grid.panels[i].pl[1].X - baseLines[grids.IndexOf(grid)][a[1]].X) < fugaMax && Math.Abs(grid.panels[i].pl[1].Y - baseLines[grids.IndexOf(grid)][a[1]].Y) < fugaMax)
@@ -290,6 +301,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
     public Polyline height;
     public Vector3d normal;
 
+    // DELETE
     public bool monopanel;
 
     // tutte le coordinate delle fughe in X e Z
@@ -299,7 +311,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
     public List<PanelC41> panels;
     public List<Point3d> pts;
 
-    public Grid3d(DataTree<object> x, DataTree<object> y)
+    public Grid3d(DataTree<object> x, DataTree<object> y, Vector3d vector)
     {
       param = x;
       obs = new DataTree<Polyline>();
@@ -307,7 +319,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       for (int i = 0; i < y.BranchCount; i++)
       { obs.AddRange(y.Branch(i).Select(pl => (PolylineCurve)pl).ToList().Select(pl => pl.ToPolyline()).ToList(), new GH_Path(i)); }
 
-      BorderRotation(x.Branch(0)[1]);
+      BorderRotation(x.Branch(0)[1], vector);
       OrderLines(param);
 
       pts = new List<Point3d>();
@@ -319,7 +331,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       PostPanels(panels);
     }
 
-    public void BorderRotation(object a)
+    public void BorderRotation(object a, Vector3d vector)
     {
       PolylineCurve p = (PolylineCurve)a;
       Polyline tmpPl = p.ToPolyline();
@@ -330,7 +342,8 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       border = new Polyline(list.GetRange(0, 2));
       height = new Polyline(new List<Point3d> { list[3], list[0] });
 
-      normal = Vector3d.CrossProduct(new Vector3d(border[1] - border[0]), new Vector3d(height[0] - height[1]));
+      //normal = Vector3d.CrossProduct(new Vector3d(border[1] - border[0]), new Vector3d(height[0] - height[1]));
+      normal = Vector3d.CrossProduct(vector, new Vector3d(height[0] - height[1]));
     }
 
     public void OrderLines(DataTree<object> param)
@@ -408,7 +421,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
       zCoordinates = ztmp;
 
-      if (verticalPanelCount >2) monopanel = false;
+      if (verticalPanelCount > 2) monopanel = false;
       else monopanel = true;
     }
 
@@ -793,7 +806,8 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       if (counter > 0)
       {
         //if (type == "A") type = "C";
-        /*else*/ type += "*C";
+        /*else*/
+        type += "*C";
       }
     }
 
