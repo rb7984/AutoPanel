@@ -111,7 +111,7 @@ public abstract class Script_Instance_ba9bf : GH_ScriptInstance
 
         RhinoApp.RunScript("-Export " + path + " " + "Enter ", false);
         RhinoApp.RunScript("-SelAll", false);
-        RhinoApp.RunScript("-Delete", false);
+        //RhinoApp.RunScript("-Delete", false);
       }
     }
   }
