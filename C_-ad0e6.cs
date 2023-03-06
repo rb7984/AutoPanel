@@ -87,7 +87,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
     }
     this.archive.AddRange(ArchiveTypes(panelC41s));
 
-    A = facade.angles;
+    A = facade.grids[0].ax;
     B = facade.baseLines;
     pl = plines;
     layerNames = types;
@@ -125,7 +125,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
     //DELETE
     public List<Polyline> baseLine; //?? a cosa serve avere in memoria una lista di polilinee unica?
-
+    public List<Vector3d> vecs;
     //contructor
     public Facade(DataTree<object> input, DataTree<object> obs, List<Polyline> baseline)
     {
@@ -136,12 +136,13 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       var pointer = 0;
 
       //DELETE //Sostituisce funzione FillAngles() ma se messa prima del for loop rompe
+      vecs = new List<Vector3d>();
       List<Polyline> bL = new List<Polyline>();
       foreach (Polyline p in baseline)
       {
         for (int i = 0; i < p.Count - 1; i++)
         {
-          bL.Add(new Polyline(new List<Point3d> { p[i], p[i+1] }));
+          bL.Add(new Polyline(new List<Point3d> { p[i], p[i + 1] }));
         }
       }
       // END DELETE
@@ -165,8 +166,8 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
           tmpObs.AddRange(obs.Branch(j), new GH_Path(count));
           count++;
         }
-
-        Grid3d tmpGrid = new Grid3d(tmp, tmpObs, new Vector3d(bL[i][1]- bL[i][0]));
+        vecs.Add(new Vector3d(bL[i][1] - bL[i][0]));
+        Grid3d tmpGrid = new Grid3d(tmp, tmpObs, new Vector3d(bL[i][1] - bL[i][0]));
         grids.Add(tmpGrid);
         //panelsTree.AddRange(tmpGrid.panels, new GH_Path(i - 1));
       }
@@ -300,9 +301,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
     public Polyline border;
     public Polyline height;
     public Vector3d normal;
-
-    // DELETE
-    public bool monopanel;
+    public Vector3d ax;
 
     // tutte le coordinate delle fughe in X e Z
     List<Point3d> pointCoordinates;
@@ -311,10 +310,14 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
     public List<PanelC41> panels;
     public List<Point3d> pts;
 
+    // DELETE
+    public bool monopanel;
+
     public Grid3d(DataTree<object> x, DataTree<object> y, Vector3d vector)
     {
       param = x;
       obs = new DataTree<Polyline>();
+      ax = new Vector3d(vector);
 
       for (int i = 0; i < y.BranchCount; i++)
       { obs.AddRange(y.Branch(i).Select(pl => (PolylineCurve)pl).ToList().Select(pl => pl.ToPolyline()).ToList(), new GH_Path(i)); }
@@ -443,7 +446,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
           pts.AddRange(points.GetRange(0, 4));
 
-          PanelC41 tmpPanel = new PanelC41(points, obs);
+          PanelC41 tmpPanel = new PanelC41(points, obs, ax);
           if (!tmpPanel.crossed) panels.Add(tmpPanel);
         }
       }
@@ -544,11 +547,12 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
     public string type;
     public string name;
     public double[] firstCorner = new double[3];
+    public Vector3d ax;
 
     public string toExcel;
 
     //Constructor
-    public PanelC41(List<Point3d> list, DataTree<Polyline> obs)
+    public PanelC41(List<Point3d> list, DataTree<Polyline> obs, Vector3d axes)
     {
       borderUp = 1;
       borderDown = 2;
@@ -562,6 +566,8 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       firstCorner[0] = pl[0].X;
       firstCorner[1] = pl[0].Y;
       firstCorner[2] = pl[0].Z;
+
+      ax = new Vector3d(axes);
 
       int[] i = Intercept(obs);
 
@@ -697,19 +703,12 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
       if (Math.Abs(pl[1].X - pl[0].X) > 0.01)
       {
-        double t0 = pl[1].X - pl[0].X;
-        double t1 = pObs[1].X - pObs[0].X;
-
-        if (!SameSign(t0, t1))
-        {
-          pObs = pObs.OrderBy(point => point.X).ToList();
-        }
+        pObs = pObs.OrderBy(point => point.X).ToList();
         compare = new double[] { pl[0].X, pl[1].X, pObs[0].X, pObs[1].X };
       }
       else
       {
-        p.OrderBy(point => point.Y);
-        pObs.OrderBy(point => point.Y);
+        pObs = pObs.OrderBy(point => point.Y).ToList();
         compare = new double[] { pl[0].Y, pl[1].Y, pObs[0].Y, pObs[1].Y };
       }
 
@@ -719,7 +718,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         return true;
       }
 
-      // Obs one side
+      // Obs one side 
       else if (compare[1] > compare[3])
       {
         List<Point3d> tmp = new List<Point3d>()
@@ -732,10 +731,14 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         };
 
         pl = new Polyline(tmp);
+
+        if (ax.X < 0 || ax.Y < 0) type = "F";
+        else type = "E";
+
         return false;
       }
 
-      // Obs one side
+      // Obs other side
       else if (compare[0] < compare[2])
       {
         List<Point3d> tmp = new List<Point3d>()
@@ -749,11 +752,104 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
         pl = new Polyline(tmp);
 
+        if (ax.X < 0 || ax.Y < 0) type = "E";
+        else type = "F";
+
         return false;
       }
 
       else { return false; }
     }
+
+
+    //public bool InterceptedPanelHorizontal(List<Polyline> obs, int i, double fuga)
+    //{
+    //  // Funziona solo per rettangoli orizzontali centrati sui pannelli
+    //  // Viene considerata solo X-Y quindi
+
+    //  List<Point3d> p = new List<Point3d> { pl[0], pl[1] };
+    //  List<Point3d> pObs = new List<Point3d> { obs[i][0], obs[i][1], obs[i][2], obs[i][3] };
+    //  pObs.OrderBy(point => point.Z);
+    //  pObs.RemoveRange(2, 2);
+
+    //  double[] compare = new double[4];
+
+    //  double t0 = pl[1].X - pl[0].X;
+    //  double t1 = pObs[1].X - pObs[0].X;
+    //  bool sameSignX = SameSign(t0, t1);
+
+    //  double t2 = pl[1].Y - pl[0].Y;
+    //  double t3 = pObs[1].Y - pObs[0].Y;
+    //  bool sameSignY = SameSign(t2, t3);
+
+    //  if (Math.Abs(pl[1].X - pl[0].X) > 0.01)
+    //  {
+    //    if (!sameSignX)
+    //    {
+    //      pObs = pObs.OrderBy(point => point.X).ToList();
+    //    }
+    //    compare = new double[] { pl[0].X, pl[1].X, pObs[0].X, pObs[1].X };
+    //  }
+    //  else
+    //  {
+    //    if (!sameSignY)
+    //    {
+    //      pObs = pObs.OrderBy(point => point.Y).ToList();
+    //    }
+    //    compare = new double[] { pl[0].Y, pl[1].Y, pObs[0].Y, pObs[1].Y };
+    //    //p.OrderBy(point => point.Y);
+    //    //pObs.OrderBy(point => point.Y);
+    //    //compare = new double[] { pl[0].Y, pl[1].Y, pObs[0].Y, pObs[1].Y };
+    //  }
+
+    //  // Obs bigger
+    //  if (compare[3] >= compare[1] && compare[2] <= compare[0])
+    //  {
+    //    return true;
+    //  }
+
+    //  // Obs one side 
+    //  else if (compare[1] > compare[3])
+    //  {
+    //    List<Point3d> tmp = new List<Point3d>()
+    //    {
+    //      new Point3d(pObs[1].X, pObs[1].Y, pl[0].Z),
+    //      new Point3d(p[1].X , p[1].Y, pl[1].Z),
+    //      new Point3d(p[1].X , p[1].Y, pl[2].Z),
+    //      new Point3d(pObs[1].X, pObs[1].Y, pl[3].Z),
+    //      new Point3d(pObs[1].X, pObs[1].Y, pl[4].Z)
+    //    };
+
+    //    pl = new Polyline(tmp);
+
+    //    if (!sameSignX | !sameSignY) type = "F";
+    //    else type = "E";
+
+    //    return false;
+    //  }
+
+    //  // Obs one side
+    //  else if (compare[0] < compare[2])
+    //  {
+    //    List<Point3d> tmp = new List<Point3d>()
+    //    {
+    //      new Point3d(p[0]),
+    //      new Point3d(pObs[0].X, pObs[0].Y, pl[1].Z),
+    //      new Point3d(pObs[0].X, pObs[0].Y, pl[2].Z),
+    //      new Point3d(pl[3]),
+    //      new Point3d(p[0])
+    //    };
+
+    //    pl = new Polyline(tmp);
+
+    //    if (!sameSignX | !sameSignY) type = "E";
+    //    else type = "F";
+
+    //    return false;
+    //  }
+
+    //  else { return false; }
+    //}
 
     public void InterceptedPanelVarious(List<Polyline> obs)
     {

@@ -56,7 +56,7 @@ public abstract class Script_Instance_ba9bf : GH_ScriptInstance
   /// they will have a default value.
   /// </summary>
   #region Runscript
-  private void RunScript(bool bake, DataTree<GeometryBase> plines, DataTree<GeometryBase> hatches, DataTree<string> names, DataTree<Plane> textLocations, string savingPath, List<Polyline> baseLines, ref object A)
+  private void RunScript(bool bake, DataTree<GeometryBase> plines, DataTree<string> layerNames, DataTree<string> names, DataTree<Plane> textLocations, string savingPath, List<Polyline> baseLines, DataTree<Polyline> pl, ref object A)
   {
     RhinoDoc doc = RhinoDoc.ActiveDoc;
 
@@ -73,6 +73,8 @@ public abstract class Script_Instance_ba9bf : GH_ScriptInstance
 
     if (bake)
     {
+      ConstructionPlane cpOrigin = doc.Views.ActiveView.ActiveViewport.GetConstructionPlane();
+
       for (int i = 0; i < plines.BranchCount; i++)
       {
         ConstructionPlane cp = new ConstructionPlane();
@@ -80,19 +82,20 @@ public abstract class Script_Instance_ba9bf : GH_ScriptInstance
 
         cp.Plane = p;
 
-        doc.Views.ActiveView.ActiveViewport.SetConstructionPlane(cp);
+        Transform cb = Transform.PlaneToPlane(cp.Plane, cpOrigin.Plane);
+        //doc.Views.ActiveView.ActiveViewport.SetConstructionPlane(cp);
 
         for (int j = 0; j < plines.Branch(i).Count; j++)
         {
           ObjectAttributes colorHatchesAtt = new ObjectAttributes();
           colorHatchesAtt.LayerIndex = doc.Layers.FindName("hatch_colors").Index;
-          int[] tmp = ColorRB(names.Branch(i)[j]);
+          int[] tmp = ColorRB(layerNames.Branch(i)[j]);
           Color color = Color.FromArgb(tmp[0], tmp[1], tmp[2]);
           colorHatchesAtt.ObjectColor = color;
           colorHatchesAtt.ColorSource = ObjectColorSource.ColorFromObject;
 
           ObjectAttributes plineAtt = new ObjectAttributes();
-          plineAtt.LayerIndex = doc.Layers.FindName(names.Branch(i)[j]).Index;
+          plineAtt.LayerIndex = doc.Layers.FindName(layerNames.Branch(i)[j]).Index;
 
           TextEntity t = new TextEntity
           {
@@ -100,10 +103,19 @@ public abstract class Script_Instance_ba9bf : GH_ScriptInstance
             Plane = textLocations.Branch(i)[j]
           };
 
-          RhinoDocument.Objects.Add(plines.Branch(i)[j], plineAtt);
-          RhinoDocument.Objects.Add(t, textAttribute);
-          RhinoDocument.Objects.Add(hatches.Branch(i)[j], greyHatchesAtt);
-          RhinoDocument.Objects.Add(hatches.Branch(i)[j], colorHatchesAtt);
+          var a = plines.Branch(i)[j]; a.Transform(cb);
+          var b = t; b.Transform(cb);
+          //var c = hatches.Branch(i)[j]; c.Transform(cb);
+          //var d = hatches.Branch(i)[j]; d.Transform(cb);
+
+          var aa = pl.Branch(i)[j].ToPolylineCurve(); aa.Transform(cb);
+
+          Hatch h = Hatch.Create(aa, 0, 0.0, 0.0, 0.0)[0];
+
+          RhinoDocument.Objects.Add(/*plines.Branch(i)[j]*/a, plineAtt);
+          RhinoDocument.Objects.Add(/*t*/b, textAttribute);
+          RhinoDocument.Objects.Add(/*hatches.Branch(i)[j]*/h, greyHatchesAtt);
+          RhinoDocument.Objects.Add(/*hatches.Branch(i)[j]*/h, colorHatchesAtt);
         }
 
         RhinoApp.RunScript("-SelAll", false);
@@ -111,7 +123,7 @@ public abstract class Script_Instance_ba9bf : GH_ScriptInstance
 
         RhinoApp.RunScript("-Export " + path + " " + "Enter ", false);
         RhinoApp.RunScript("-SelAll", false);
-        //RhinoApp.RunScript("-Delete", false);
+        RhinoApp.RunScript("-Delete", false);
       }
     }
   }
