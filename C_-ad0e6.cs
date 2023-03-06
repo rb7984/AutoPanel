@@ -17,6 +17,7 @@ using Rhino.UI.Controls;
 using Grasshopper.Kernel.Types.Transforms;
 using System.Diagnostics;
 using Rhino.UI;
+using Rhino.Render.ChangeQueue;
 
 
 /// <summary>
@@ -68,7 +69,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
     this.archive = new List<string>();
     this.names = new DataTree<string>();
     types = new DataTree<string>();
-    toExport = new List<string>();
+    toExport = new List<string> { "Type,Width,Heigh,Marca,Facciata" };
     normals = new List<Vector3d>();
     //DELETE
     borders = new List<Polyline>();
@@ -178,6 +179,8 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       {
         PostPanels(grids[i]);
       }
+
+      CorrectExport();
     }
 
     public List<int> FacadeCount(DataTree<object> input)
@@ -260,7 +263,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         //RIGHT
         if (Math.Abs(grid.panels[i].pl[1].X - baseLines[grids.IndexOf(grid)][a[1]].X) < fugaMax && Math.Abs(grid.panels[i].pl[1].Y - baseLines[grids.IndexOf(grid)][a[1]].Y) < fugaMax)
         {
-          if (grid.panels[i].type == "A*C") grid.panels[i].type = "C*" + BorderPanel(grids.IndexOf(grid), a[0]);
+          if (grid.panels[i].type == "A*C") grid.panels[i].type = "C*" + BorderPanel(grids.IndexOf(grid), a[1]);
           else grid.panels[i].type = BorderPanel(grids.IndexOf(grid), a[1]);
         }
       }
@@ -289,6 +292,19 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         angle = (360 - angle) / 2;
         if (a == 0) return "H" + "." + Math.Round(angle).ToString();
         else return "G" + "." + Math.Round(angle).ToString();
+      }
+    }
+
+    public void CorrectExport()
+    {
+      foreach (Grid3d grid in grids)
+      {
+        int a = grids.IndexOf(grid);
+        foreach (PanelC41 p in grid.panels)
+        {
+          p.toExcel = p.type + "," + p.width.ToString() + "," + p.height.ToString() +
+        "," + p.type + "." + p.width.ToString() + "." + p.height.ToString() + "," + a.ToString();
+        }
       }
     }
   }
@@ -525,7 +541,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
     public List<string> ToExport(List<PanelC41> panels)
     {
       List<string> export = panels.Select(i => i.toExcel).ToList();
-      export.Insert(0, "Type,Width,Heigh,Marca");
+      //export.Insert(0, "Type,Width,Heigh,Marca");
 
       return export;
     }
