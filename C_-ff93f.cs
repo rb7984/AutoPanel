@@ -86,7 +86,7 @@ public abstract class Script_Instance_ff93f : GH_ScriptInstance
       len = pl[0].DistanceTo(pl[1]);
       double test = len + tolerance;
 
-      if (test > 1250)
+      if (test > 1251)
       {
         alert.Add(new Point3d(pl.BoundingBox.Center));
       }
