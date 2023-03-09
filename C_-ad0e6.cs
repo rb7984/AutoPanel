@@ -66,7 +66,6 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
   {
     facade = new Facade(x, y, z);
 
-
     panelC41s = new List<PanelC41>();
     plines = new DataTree<Polyline>();
     this.archive = new List<string>();
@@ -74,8 +73,6 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
     types = new DataTree<string>();
     toExport = new List<string> { "Type,Width,Heigh,Marca,Facciata" };
     normals = new List<Vector3d>();
-    //DELETE
-    borders = new List<Polyline>();
 
     foreach (Grid3d grid in facade.grids)
     {
@@ -86,9 +83,8 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       types.AddRange(grid.TypeTags(grid.panels), new GH_Path(i));
       toExport.AddRange(grid.ToExport(grid.panels));
       normals.Add(grid.normal);
-
-      borders.Add(grid.border);
     }
+
     this.archive.AddRange(ArchiveTypes(panelC41s));
 
     A = facade.angles;
@@ -97,7 +93,6 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
     layerNames = types;
     names = this.names;
     archive = this.archive;
-    //freeTag =;
     export = toExport;
     PanelC41 = normals;
   }
@@ -114,9 +109,6 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
   public List<Vector3d> normals;
 
   public List<string> archive;
-
-  //DELETE
-  public List<Polyline> borders;
 
   public class Facade
   {
@@ -207,7 +199,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
           Vector3d normal = Vector3d.CrossProduct(new Vector3d(p[i] - p[i - 1]), new Vector3d(0, 0, 1));
 
           if (Intersection.CurveCurve(new Line(p[i - 1], p[i + 1]).ToNurbsCurve(),
-            new Line(p[i], /*grids[i - 1].*/normal, 100000).ToNurbsCurve(), 0.1, 0.1).Count > 0)
+            new Line(p[i], normal, 100000).ToNurbsCurve(), 0.1, 0.1).Count > 0)
           {
             angles.AddRange(Enumerable.Repeat(Vector3d.VectorAngle(new Vector3d(p[i - 1] - p[i]), new Vector3d(p[i + 1] - p[i])), 2));
           }
@@ -245,41 +237,6 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         }
       }
     }
-
-    //public void PostPanels(Grid3d grid)
-    //{
-    //  int fugaMax = 16;
-    //  int[] a;
-    //  if (baseLines[grids.IndexOf(grid)][1].X - baseLines[grids.IndexOf(grid)][0].X > 0) a = new int[] { 0, 1 };
-    //  else a = new int[] { 1, 0 };
-
-    //  for (int i = 0; i < grid.panels.Count; i++)
-    //  {
-    //    ////BOTTOM
-    //    //if (Math.Abs(grid.panels[i].pl[0].Z - grid.border[0].Z) < fugaMax)
-    //    //{
-    //    //  grid.panels[i].type = "E";
-    //    //}
-    //    ////TOP
-    //    //if (grid.height[0].Z - Math.Abs(grid.panels[i].pl[3].Z) < fugaMax)
-    //    //{
-    //    //  grid.panels[i].type = "E";
-    //    //}
-
-    //    //LEFT
-    //    if (Math.Abs(grid.panels[i].pl[0].X - baseLines[grids.IndexOf(grid)][a[0]].X) < fugaMax && Math.Abs(grid.panels[i].pl[0].Y - baseLines[grids.IndexOf(grid)][a[0]].Y) < fugaMax)
-    //    {
-    //      if (grid.panels[i].type == "A*C") grid.panels[i].type = "C*" + BorderPanel(grids.IndexOf(grid), a[0]);
-    //      else grid.panels[i].type = BorderPanel(grids.IndexOf(grid), a[0]);
-    //    }
-    //    //RIGHT
-    //    if (Math.Abs(grid.panels[i].pl[1].X - baseLines[grids.IndexOf(grid)][a[1]].X) < fugaMax && Math.Abs(grid.panels[i].pl[1].Y - baseLines[grids.IndexOf(grid)][a[1]].Y) < fugaMax)
-    //    {
-    //      if (grid.panels[i].type == "A*C") grid.panels[i].type = "C*" + BorderPanel(grids.IndexOf(grid), a[1]);
-    //      else grid.panels[i].type = BorderPanel(grids.IndexOf(grid), a[1]);
-    //    }
-    //  }
-    //}
 
     public string BorderPanel(int i, int a)
     {
@@ -358,7 +315,6 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
       panels = Panels(pointCoordinates, zCoordinates);
 
-      // STOP
       OrderOutput(panels);
 
       PostPanels(panels);
@@ -440,25 +396,6 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       ptmp.AddRange(new List<Point3d> { border.PointAt(0), border.PointAt(1) });
       pointCoordinates = ptmp.OrderBy(point => point.DistanceTo(border[0])).ToList();
 
-      //if (Math.Abs(border[1].X - border[0].X) > 0.01)
-      //{
-      //  ptmp = ptmp.OrderBy(point => point.X).ToList();
-      //  ptmp.RemoveAt(0);
-      //  ptmp.RemoveAt(ptmp.Count - 1);
-      //  ptmp.AddRange(new List<Point3d> { border.PointAt(0), border.PointAt(1) });
-
-      //  pointCoordinates = ptmp.OrderBy(point => point.X).ToList();
-      //}
-      //else
-      //{
-      //  ptmp = ptmp.OrderBy(point => point.Y).ToList();
-      //  ptmp.RemoveAt(0);
-      //  ptmp.RemoveAt(ptmp.Count - 1);
-      //  ptmp.AddRange(new List<Point3d> { border.PointAt(0), border.PointAt(1) });
-
-      //  pointCoordinates = ptmp.OrderBy(point => point.Y).ToList();
-      //}
-
       if (verticalPanelCount > 2) monopanel = false;
       else monopanel = true;
     }
@@ -492,15 +429,6 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
     public void OrderOutput(List<PanelC41> panels)
     {
       List<PanelC41> tmp;
-
-      //if (Math.Abs(border[1].X - border[0].X) > 0.01)
-      //{
-      //  tmp = panels.OrderBy(a => a.firstCorner[0]).ThenBy(b => b.firstCorner[2]).ToList();
-      //}
-      //else
-      //{
-      //  tmp = panels.OrderBy(a => a.firstCorner[1]).ThenBy(b => b.firstCorner[2]).ToList();
-      //}
 
       tmp = panels.OrderBy(a => new Point3d(a.firstCorner.X, a.firstCorner.Y, 0).DistanceTo(border[0])).ThenBy(b => b.firstCorner.Z).ToList();
 
@@ -555,7 +483,6 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
     public List<string> TypeTags(List<PanelC41> panels)
     {
-      //List<string> types = panels.Select(i => i.type).ToList();
       List<string> types = panels.Select(i => i.type.Split('.')[0]).ToList();
 
       return types;
@@ -564,7 +491,6 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
     public List<string> ToExport(List<PanelC41> panels)
     {
       List<string> export = panels.Select(i => i.toExcel).ToList();
-      //export.Insert(0, "Type,Width,Heigh,Marca");
 
       return export;
     }
@@ -591,7 +517,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
     public string toExcel;
 
-    //Constructor
+    //constructor
     public PanelC41(List<Point3d> list, DataTree<Polyline> obs, Polyline border)
     {
       borderUp = 1;
@@ -648,8 +574,6 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       pl = new Polyline(list);
 
       firstCorner = pl[0];
-      //firstCorner[0] = pl[0].X;
-      //firstCorner[1] = pl[0].Y;
 
       Name();
 
@@ -666,7 +590,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       for (int i = 0; i < obs.Branch(0).Count; i++)
       {
         var tmp = Intersection.CurveCurve(pl.ToPolylineCurve(), obs.Branch(0)[i].ToPolylineCurve(), 0.1, 0.1).Count;
-        //counter += tmp;
+
         if (tmp != 0)
         {
           intercepted.Add(i);
@@ -680,7 +604,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       for (int i = 0; i < obs.Branch(2).Count; i++)
       {
         var tmp = Intersection.CurveCurve(pl.ToPolylineCurve(), obs.Branch(2)[i].ToPolylineCurve(), 0.1, 0.1).Count;
-        //counter += tmp;
+
         if (tmp != 0)
         {
           intercepted.Add(i);
@@ -750,7 +674,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
     public bool InterceptedPanelHorizontal(List<Polyline> obs, int i, double fuga)
     {
       // Funziona solo per rettangoli orizzontali centrati sui pannelli
-      // Viene considerata solo X-Y quindi
+      // Viene considerata solo distanza X-Y
 
       List<Point3d> p = new List<Point3d> { pl[0], pl[1] };
       List<Point3d> pObs = new List<Point3d> { obs[i][0], obs[i][1], obs[i][2], obs[i][3] };
@@ -818,8 +742,8 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         counter += tmp;
 
         // Pannelli C circondati
-        bool panelIn = new Point3d(pObs[1].X, pObs[1].Y,0).DistanceTo(gridOriginZ0) > new Point3d(pl[1].X, pl[1].Y,0).DistanceTo(gridOriginZ0) 
-          && new Point3d(pObs[0].X, pObs[0].Y,0).DistanceTo(gridOriginZ0) < new Point3d(pl[0].X, pl[0].Y, 0).DistanceTo(gridOriginZ0) 
+        bool panelIn = new Point3d(pObs[1].X, pObs[1].Y, 0).DistanceTo(gridOriginZ0) > new Point3d(pl[1].X, pl[1].Y, 0).DistanceTo(gridOriginZ0)
+          && new Point3d(pObs[0].X, pObs[0].Y, 0).DistanceTo(gridOriginZ0) < new Point3d(pl[0].X, pl[0].Y, 0).DistanceTo(gridOriginZ0)
           && zObs[1] > z[1] && z[0] > zObs[0];
         if (panelIn)
         {
@@ -900,5 +824,6 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
     return arc;
   }
+
   #endregion
 }

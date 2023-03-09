@@ -1,5 +1,0 @@
-C:\Users\riccardo\source\repos\GH_Develop\AutoPanel\obj\Debug\net452\GrasshopperScripts.csproj.AssemblyReference.cache
-C:\Users\riccardo\source\repos\GH_Develop\AutoPanel\obj\Debug\net452\GrasshopperScripts.GeneratedMSBuildEditorConfig.editorconfig
-C:\Users\riccardo\source\repos\GH_Develop\AutoPanel\obj\Debug\net452\GrasshopperScripts.AssemblyInfoInputs.cache
-C:\Users\riccardo\source\repos\GH_Develop\AutoPanel\obj\Debug\net452\GrasshopperScripts.AssemblyInfo.cs
-C:\Users\riccardo\source\repos\GH_Develop\AutoPanel\obj\Debug\net452\GrasshopperScripts.csproj.CoreCompileInputs.cache
