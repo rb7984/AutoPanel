@@ -141,9 +141,9 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         }
         pointer += counter[i];
 
-        var k = i * 4;
+        var k = i * 5;
         count = 0;
-        for (int j = k; j < k + 4; j++)
+        for (int j = k; j < k + 5; j++)
         {
           tmpObs.AddRange(obs.Branch(j), new GH_Path(count));
           count++;
@@ -536,21 +536,33 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       gridOrigin = border[0];
       gridOriginZ0 = new Point3d(border[0].X, border[0].Y, 0);
 
-      List<int> i = Intercept(obs);
+      int[] wall = InterceptedPanelWall(obs.Branch(4));
 
-      if (i[0] != 0)
+      // [0 = internal,
+      // 1 = verticalInterception,
+      // 2 = horizontalInteception,
+      // 3 = corner]
+
+      if (wall[0] != 0)
       {
-        for (int j = 1; j < i[0] + 1; j++)
+        List<int> i = Intercept(obs);
+
+        if (i[0] != 0)
         {
-          crossed = InterceptedPanelVertical(obs.Branch(0), i[j], 8);
+          for (int j = 1; j < i[0] + 1; j++)
+          {
+            crossed = InterceptedPanelVertical(obs.Branch(0), i[j], 8);
+          }
         }
-      }
-      if (i[i[0] + 1] != 0)
-      {
-        for (int j = i[i[0] + 1] + 1; j < i.Count; j++)
+        if (i[i[0] + 1] != 0)
         {
-          crossed = InterceptedPanelHorizontal(obs.Branch(2), i[j], 8);
+          for (int j = i[i[0] + 1] + 1; j < i.Count; j++)
+          {
+            crossed = InterceptedPanelHorizontal(obs.Branch(2), i[j], 8);
+          }
         }
+        if (wall[0] == 1) crossed = InterceptedPanelVertical(obs.Branch(4), wall[1], 8);
+        if (wall[0] == 2) crossed = InterceptedPanelHorizontal(obs.Branch(4), wall[1], 8);
       }
 
       Name();
@@ -764,6 +776,59 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       }
     }
 
+    public int[] InterceptedPanelWall(List<Polyline> obs)
+    {
+      int[] result = new int[2] { -1, -1 };
+
+      foreach (Polyline polyline in obs)
+      {
+        List<Point3d> pObs = polyline.Select(point => point).ToList();
+        pObs.RemoveAt(pObs.Count - 1);
+        pObs = pObs.OrderBy(point => point.Z).ToList();
+        double[] zObs = new double[] { pObs[0].Z, pObs[3].Z };
+        pObs.RemoveRange(2, 2);
+        pObs = pObs.OrderBy(point => new Point3d(point.X, point.Y, 0).DistanceTo(gridOriginZ0)).ToList();
+
+        bool horizontalIn = new Point3d(pObs[1].X, pObs[1].Y, 0).DistanceTo(gridOriginZ0) >= new Point3d(pl[1].X, pl[1].Y, 0).DistanceTo(gridOriginZ0)
+  && new Point3d(pObs[0].X, pObs[0].Y, 0).DistanceTo(gridOriginZ0) <= new Point3d(pl[0].X, pl[0].Y, 0).DistanceTo(gridOriginZ0);
+        bool verticalIn = zObs[1] >= pl[2].Z && zObs[0] <= pl[0].Z;
+
+        bool verticalIntersection = (pl[2].Z > zObs[1] && zObs[1] > pl[0].Z) | (pl[2].Z > zObs[0] && zObs[0] > pl[0].Z);
+
+        bool a = new Point3d(pl[1].X, pl[1].Y, 0).DistanceTo(gridOriginZ0) > new Point3d(pObs[1].X, pObs[1].Y, 0).DistanceTo(gridOriginZ0);
+        bool b = new Point3d(pObs[1].X, pObs[1].Y, 0).DistanceTo(gridOriginZ0) > new Point3d(pl[0].X, pl[0].Y, 0).DistanceTo(gridOriginZ0);
+        bool c = new Point3d(pl[1].X, pl[1].Y, 0).DistanceTo(gridOriginZ0) > new Point3d(pObs[0].X, pObs[0].Y, 0).DistanceTo(gridOriginZ0);
+        bool d = new Point3d(pObs[0].X, pObs[0].Y, 0).DistanceTo(gridOriginZ0) > new Point3d(pl[0].X, pl[0].Y, 0).DistanceTo(gridOriginZ0);
+        bool horizontalIntersection = (a && b) | (c && d);
+
+        if (horizontalIn && verticalIn)
+        {
+          result.SetValue(0, 0);
+          crossed = true;
+        }
+        else if (verticalIntersection && horizontalIn)
+        {
+          result.SetValue(1, 0);
+          result.SetValue(obs.IndexOf(polyline), 1);
+        }
+        else if (horizontalIntersection && verticalIn)
+        {
+          if (result[0] == -1)
+          {
+            result.SetValue(2, 0);
+            result.SetValue(obs.IndexOf(polyline), 1);
+          }
+        }
+        else if (horizontalIntersection && verticalIntersection)
+        {
+          result.SetValue(3, 0);
+          type += "*C";
+        }
+      }
+
+      return result;
+    }
+
     public void Detached(List<Polyline> det)
     {
       // Per ogni Line di intersezione
@@ -824,6 +889,5 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
     return arc;
   }
-
   #endregion
 }
