@@ -62,7 +62,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
   /// they will have a default value.
   /// </summary>
   #region Runscript
-  private void RunScript(DataTree<object> x, DataTree<object> y, List<Polyline> z, ref object A, ref object B, ref object pl, ref object layerNames, ref object names, ref object archive, ref object freeTag, ref object export, ref object PanelC41)
+  private void RunScript(DataTree<object> x, DataTree<object> y, List<Polyline> z, ref object A, ref object baselines, ref object pl, ref object layerNames, ref object names, ref object archive, ref object freeTag, ref object export, ref object normalVectors)
   {
     facade = new Facade(x, y, z);
 
@@ -88,13 +88,13 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
     this.archive.AddRange(ArchiveTypes(panelC41s));
 
     A = facade.angles;
-    B = facade.baseLines;
+    baselines = facade.baseLines;
     pl = plines;
     layerNames = types;
     names = this.names;
     archive = this.archive;
     export = toExport;
-    PanelC41 = normals;
+    normalVectors = normals;
   }
   #endregion
   #region Additional
@@ -226,14 +226,16 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         //LEFT
         if (Math.Abs(l) < fugaMax)
         {
-          if (grid.panels[i].type == "A*C") grid.panels[i].type = "C*" + BorderPanel(grids.IndexOf(grid), 0);
-          else grid.panels[i].type = BorderPanel(grids.IndexOf(grid), 0);
+          //if (grid.panels[i].type == "A*C") grid.panels[i].type = "C*" + BorderPanel(grids.IndexOf(grid), 0);
+          //else grid.panels[i].type = BorderPanel(grids.IndexOf(grid), 0);
+          grid.panels[i].type = grid.panels[i].type.Replace("A", BorderPanel(grids.IndexOf(grid), 0));
         }
         //RIGHT
         if (Math.Abs(r) < fugaMax)
         {
-          if (grid.panels[i].type == "A*C") grid.panels[i].type = "C*" + BorderPanel(grids.IndexOf(grid), 1);
-          else grid.panels[i].type = BorderPanel(grids.IndexOf(grid), 1);
+          //if (grid.panels[i].type == "A*C") grid.panels[i].type = "C*" + BorderPanel(grids.IndexOf(grid), 1);
+          //else grid.panels[i].type = BorderPanel(grids.IndexOf(grid), 1);
+          grid.panels[i].type = grid.panels[i].type.Replace("A", BorderPanel(grids.IndexOf(grid), 1));
         }
       }
     }
@@ -419,7 +421,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
           pts.AddRange(points.GetRange(0, 4));
 
           PanelC41 tmpPanel = new PanelC41(points, obs, border);
-          if (!tmpPanel.crossed) panels.Add(tmpPanel);
+          if (!tmpPanel.crossed[1]) panels.Add(tmpPanel);
         }
       }
 
@@ -439,12 +441,62 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
     void PostPanels(List<PanelC41> panels)
     {
+      List<int> tmp = new List<int>();
+
+      // Panel with horizontal interceptions
+      for (int i = 1; i < panels.Count - 1; i++)
+      {
+        if (panels[i].crossed[0] == true && panels[i].crossed[1] == false)
+        {
+          panels[i - 1].type += "*W";
+          panels[i + 1].type += "*B";
+          tmp.Add(i);
+        }
+      }
+
+      tmp = tmp.OrderByDescending(x => x).ToList();
+      for (int i = 0; i < tmp.Count; i++)
+      {
+        panels.RemoveAt(tmp[i]);
+      }
+
+      // All panels
       for (int i = 0; i < panels.Count - 1; i++)
       {
-        if (panels[i].type == "B" || panels[i].type == "B*C")
+        if (panels[i].type.Contains('B'))
         {
-          if (panels[i + 1].type == "C" || panels[i + 1].type == "A*C") panels[i + 1].type = "D*C";
-          else panels[i + 1].type = "D";
+          panels[i + 1].type += "*D";
+          panels[i + 1].tin = true;
+        }
+      }
+
+      for (int i = 0; i < panels.Count; i++)
+      {
+        if (panels[i].type.Contains('W'))
+        {
+          panels[i].type = panels[i].type.Replace('W', 'B');
+        }
+        if (panels[i].type.Contains('D'))
+        {
+          panels[i].type = panels[i].type.Replace('D', 'B');
+        }
+      }
+
+      // BorderUp and Down
+      for (int i = 0; i < panels.Count; i++)
+      {
+        if (Math.Abs(panels[i].pl[0].Z - height[0].Z) < 0.01 && !panels[i].type.Contains('B'))
+        {
+          panels[i].type += "*B";
+          if (!panels[i + 1].type.Contains('B'))
+          {
+            panels[i + 1].type += "*B";
+            panels[i + 1].tin = true;
+          }
+        }
+        else if (Math.Abs(panels[i].pl[3].Z - height[1].Z) < 0.01 && !panels[i].type.Contains('B'))
+        {
+          panels[i].type += "*B";
         }
       }
     }
@@ -454,20 +506,6 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       List<Polyline> polylines = panels.Select(i => i.pl).ToList();
 
       return polylines;
-    }
-
-    public List<bool> FreeTag(List<PanelC41> panels)
-    {
-      List<bool> freeTag = panels.Select(i => i.crossed).ToList();
-
-      return freeTag;
-    }
-
-    public List<string> DimensionsTags(List<PanelC41> panels)
-    {
-      List<string> nameTags = panels.Select(i => i.name).ToList();
-
-      return nameTags;
     }
 
     public List<string> NameTags(List<PanelC41> panels)
@@ -501,13 +539,10 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
     //fields
     public double width;
     public double height;
-    public double borderUp;
-    public double borderDown;
-    public double hookUp;
-    public double hookDown;
+    public bool tin;
 
     public Polyline pl;
-    public bool crossed;
+    public bool[] crossed;
     public string type;
     public string name;
     public Point3d firstCorner;
@@ -520,13 +555,10 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
     //constructor
     public PanelC41(List<Point3d> list, DataTree<Polyline> obs, Polyline border)
     {
-      borderUp = 1;
-      borderDown = 2;
-      hookUp = 3;
-      hookDown = 4;
       type = "A";
+      tin = false;
 
-      crossed = false;
+      crossed = new bool[2] { false, false };
 
       pl = new Polyline(list);
 
@@ -561,7 +593,12 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
             crossed = InterceptedPanelHorizontal(obs.Branch(2), i[j], 8);
           }
         }
-        if (wall[0] == 1) crossed = InterceptedPanelVertical(obs.Branch(4), wall[1], 8);
+
+        if (wall[0] == 1)
+        {
+          crossed = InterceptedPanelVertical(obs.Branch(4), wall[1], 8);
+          type = type.Replace('W', 'B');
+        }
         if (wall[0] == 2) crossed = InterceptedPanelHorizontal(obs.Branch(4), wall[1], 8);
       }
 
@@ -573,24 +610,11 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         "," + type + "." + width.ToString() + "." + height.ToString();
     }
 
-    public PanelC41(List<Point3d> list)
+    public void Name()
     {
-      borderUp = 1;
-      borderDown = 2;
-      hookUp = 3;
-      hookDown = 4;
-      type = "A";
-
-      crossed = false;
-
-      pl = new Polyline(list);
-
-      firstCorner = pl[0];
-
-      Name();
-
-      toExcel = type + "," + width.ToString() + "," + height.ToString() +
-        "," + type + "." + width.ToString() + "." + height.ToString();
+      width = Math.Round(pl[0].DistanceTo(pl[1]));
+      height = Math.Round(pl[1].DistanceTo(pl[2]));
+      name = width.ToString() + '-' + height.ToString();
     }
 
     public List<int> Intercept(DataTree<Polyline> obs)
@@ -624,19 +648,12 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         }
       }
 
-      if (intercepted[0] == 0 && intercepted[intercepted[0] + 1] == 0) crossed = false;
-      else crossed = true;
+      //if (intercepted[0] == 0 && intercepted[intercepted[0] + 1] == 0) crossed = new bool[] { false, false };
+      //else crossed = new bool[] { true, true };
       return intercepted;
     }
 
-    public void Name()
-    {
-      width = Math.Round(pl[0].DistanceTo(pl[1]));
-      height = Math.Round(pl[1].DistanceTo(pl[2]));
-      name = width.ToString() + '-' + height.ToString();
-    }
-
-    public bool InterceptedPanelVertical(List<Polyline> obs, int i, double fuga)
+    public bool[] InterceptedPanelVertical(List<Polyline> obs, int i, double fuga)
     {
       // Funziona solo per finestre centrate sui pannelli
       // Viene considerata solo la Z quindi
@@ -646,7 +663,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
       if (zObs.Max() >= z.Max() && zObs.Min() <= z.Min())
       {
-        return true;
+        return new bool[] { true, true };
       }
       else if (z.Max() > zObs.Max())
       {
@@ -661,7 +678,8 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         };
 
         pl = new Polyline(tmp);
-        return false;
+        if (!type.Contains('W')) type += "*W";
+        return new bool[] { false, false };
       }
       else if (z.Min() < zObs.Min())
       {
@@ -676,14 +694,14 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         };
 
         pl = new Polyline(tmp);
-
-        return false;
+        if (!type.Contains('W')) type += "*W";
+        return new bool[] { false, false };
       }
 
-      else { return false; }
+      else { return new bool[] { false, false }; }
     }
 
-    public bool InterceptedPanelHorizontal(List<Polyline> obs, int i, double fuga)
+    public bool[] InterceptedPanelHorizontal(List<Polyline> obs, int i, double fuga)
     {
       // Funziona solo per rettangoli orizzontali centrati sui pannelli
       // Viene considerata solo distanza X-Y
@@ -710,7 +728,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
         type = "F";
 
-        return false;
+        return new bool[] { false, false };
       }
       else if (pl[1].DistanceTo(gridOrigin) > pObs[1].DistanceTo(gridOrigin))
       {
@@ -727,11 +745,11 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
         type = "E";
 
-        return false;
+        return new bool[] { false, false };
       }
       else
       {
-        return true;
+        return new bool[] { true, false };
       }
     }
 
@@ -760,7 +778,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         if (panelIn)
         {
           counter++;
-          crossed = true;
+          crossed = new bool[] { true, true };
         }
 
         // Pannelli C con un foro
@@ -804,7 +822,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         if (horizontalIn && verticalIn)
         {
           result.SetValue(0, 0);
-          crossed = true;
+          crossed = new bool[] { true, true };
         }
         else if (verticalIntersection && horizontalIn)
         {
@@ -822,7 +840,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         else if (horizontalIntersection && verticalIntersection)
         {
           result.SetValue(3, 0);
-          type += "*C";
+          type += "*B*C";
         }
       }
 
@@ -842,33 +860,10 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
       if (counter != 0)
       {
-        type = "B";
+        type += "*B";
       }
     }
 
-    public bool SameSign(double num1, double num2)
-    {
-      return num1 >= 0 && num2 >= 0 || num1 < 0 && num2 < 0;
-    }
-  }
-
-  public List<string> ArchiveDimensions(List<PanelC41> panelC41s)
-  {
-    List<string> list;
-    var orderedPanels = panelC41s.OrderBy(panelC41 => panelC41.width).ThenBy(panelC41 => panelC41.height);
-
-    list = orderedPanels.Select(x => x.name).ToList();
-
-    List<string> arc = new List<string> { list[0] };
-    for (int i = 1; i < list.Count; i++)
-    {
-      if (list[i] != list[i - 1])
-      {
-        arc.Add(list[i]);
-      }
-    }
-
-    return arc;
   }
 
   public List<string> ArchiveTypes(List<PanelC41> panelC41s)
