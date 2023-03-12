@@ -20,7 +20,7 @@ using Rhino.UI;
 using Rhino.Render.ChangeQueue;
 using System.ComponentModel;
 using System.Drawing.Printing;
-
+using System.Text;
 
 /// <summary>
 /// This class will be instantiated on demand by the Script component.
@@ -450,7 +450,14 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         {
           panels[i - 1].type += "*W";
           panels[i + 1].type += "*B";
-          tmp.Add(i);
+          if (panels[i].type.Contains("E") || panels[i].type.Contains("F"))
+          {
+            panels[i].crossed[0] = false;
+          }
+          else
+          {
+            tmp.Add(i);
+          }
         }
       }
 
@@ -728,7 +735,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
         type = "F";
 
-        return new bool[] { false, false };
+        return new bool[] { /*false*/true, false };
       }
       else if (pl[1].DistanceTo(gridOrigin) > pObs[1].DistanceTo(gridOrigin))
       {
@@ -745,7 +752,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
         type = "E";
 
-        return new bool[] { false, false };
+        return new bool[] { /*false*/true, false };
       }
       else
       {
