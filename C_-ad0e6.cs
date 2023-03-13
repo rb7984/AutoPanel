@@ -22,6 +22,7 @@ using System.ComponentModel;
 using System.Drawing.Printing;
 using System.Text;
 
+
 /// <summary>
 /// This class will be instantiated on demand by the Script component.
 /// </summary>
@@ -79,8 +80,8 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       int i = facade.grids.IndexOf(grid);
       panelC41s.AddRange(grid.panels);
       plines.AddRange(grid.Plines(grid.panels), new GH_Path(i));
-      this.names.AddRange(grid.NameTags(grid.panels), new GH_Path(i));
       types.AddRange(grid.TypeTags(grid.panels), new GH_Path(i));
+      this.names.AddRange(grid.NameTags(grid.panels), new GH_Path(i));
       toExport.AddRange(grid.ToExport(grid.panels));
       normals.Add(grid.normal);
     }
@@ -118,10 +119,13 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
     public List<double> angles;
     public List<Polyline> baseLines;
 
+    public int cCount;
+
     //contructor
     public Facade(DataTree<object> input, DataTree<object> obs, List<Polyline> baseline)
     {
       grids = new List<Grid3d>();
+      cCount = 0;
 
       // counter = [3, 3, 3]
       var counter = FacadeCount(input);
@@ -153,10 +157,12 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         grids.Add(tmpGrid);
       }
 
-      for (int i = 0; i < grids.Count; i++)
-      {
-        PostPanels(grids[i]);
-      }
+      //for (int i = 0; i < grids.Count; i++)
+      //{
+      //  PostPanels(grids[i]);
+      //}
+
+      PostPanels(grids);
 
       CorrectExport();
     }
@@ -214,28 +220,39 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       }
     }
 
-    public void PostPanels(Grid3d grid)
+    public void PostPanels(List<Grid3d> grid)
     {
       int fugaMax = 16;
+      int tracker = 0;
 
-      for (int i = 0; i < grid.panels.Count; i++)
+      for (int j = 0; j < grid.Count; j++)
       {
-        double l = new Point3d(grid.panels[i].pl[0].X, grid.panels[i].pl[0].Y, 0).DistanceTo(new Point3d(grid.border[0].X, grid.border[0].Y, 0));
-        double r = new Point3d(grid.panels[i].pl[1].X, grid.panels[i].pl[1].Y, 0).DistanceTo(new Point3d(grid.border[1].X, grid.border[1].Y, 0));
+        for (int i = 0; i < grid[j].panels.Count; i++)
+        {
+          double l = new Point3d(grid[j].panels[i].pl[0].X, grid[j].panels[i].pl[0].Y, 0).DistanceTo(new Point3d(grid[j].border[0].X, grid[j].border[0].Y, 0));
+          double r = new Point3d(grid[j].panels[i].pl[1].X, grid[j].panels[i].pl[1].Y, 0).DistanceTo(new Point3d(grid[j].border[1].X, grid[j].border[1].Y, 0));
 
-        //LEFT
-        if (Math.Abs(l) < fugaMax)
-        {
-          //if (grid.panels[i].type == "A*C") grid.panels[i].type = "C*" + BorderPanel(grids.IndexOf(grid), 0);
-          //else grid.panels[i].type = BorderPanel(grids.IndexOf(grid), 0);
-          grid.panels[i].type = grid.panels[i].type.Replace("A", BorderPanel(grids.IndexOf(grid), 0));
-        }
-        //RIGHT
-        if (Math.Abs(r) < fugaMax)
-        {
-          //if (grid.panels[i].type == "A*C") grid.panels[i].type = "C*" + BorderPanel(grids.IndexOf(grid), 1);
-          //else grid.panels[i].type = BorderPanel(grids.IndexOf(grid), 1);
-          grid.panels[i].type = grid.panels[i].type.Replace("A", BorderPanel(grids.IndexOf(grid), 1));
+          //LEFT
+          if (Math.Abs(l) < fugaMax)
+          {
+            grid[j].panels[i].type = grid[j].panels[i].type.Replace("A", BorderPanel(grids.IndexOf(grid[j]), 0));
+          }
+          //RIGHT
+          if (Math.Abs(r) < fugaMax)
+          {
+            grid[j].panels[i].type = grid[j].panels[i].type.Replace("A", BorderPanel(grids.IndexOf(grid[j]), 1));
+          }
+
+          if (grid[j].panels[i].type.Contains("C"))
+          {
+            grid[j].panels[i].cCount = tracker;
+            tracker++;
+          }
+
+          if (grid[j].panels[i].type.Contains("C*B")) 
+          {
+            grid[j].panels[i].type = grid[j].panels[i].type.Replace("C*B", "B*C");
+          }
         }
       }
     }
@@ -450,7 +467,8 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         {
           panels[i - 1].type += "*W";
           panels[i + 1].type += "*B";
-          if (panels[i].type.Contains("E") || panels[i].type.Contains("F"))
+          
+          if (panels[i].type.Contains("E") || panels[i].type.Contains("F") || panels[i].type.Contains("J") || panels[i].type.Contains("I"))
           {
             panels[i].crossed[0] = false;
           }
@@ -521,6 +539,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       for (int i = 0; i < panels.Count; i++)
       {
         names[i] = names[i] + "|" + panels[i].name;
+        if (panels[i].cCount != -1) names[i] += "/" + panels[i].cCount.ToString();
       }
 
       return names;
@@ -547,12 +566,14 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
     public double width;
     public double height;
     public bool tin;
+    public int cCount;
 
     public Polyline pl;
     public bool[] crossed;
     public string type;
     public string name;
     public Point3d firstCorner;
+    public Polyline border;
     public Vector3d ax;
     public Point3d gridOrigin;
     public Point3d gridOriginZ0;
@@ -564,6 +585,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
     {
       type = "A";
       tin = false;
+      cCount = -1;
 
       crossed = new bool[2] { false, false };
 
@@ -574,15 +596,17 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       ax = new Vector3d(border[1] - border[0]);
       gridOrigin = border[0];
       gridOriginZ0 = new Point3d(border[0].X, border[0].Y, 0);
+      this.border = border;
 
-      int[] wall = InterceptedPanelWall(obs.Branch(4));
+      //int[] wall = InterceptedPanelWall(obs.Branch(4));
+      List<int> wall = InterceptedPanelWall(obs.Branch(4));
 
       // [0 = internal,
       // 1 = verticalInterception,
       // 2 = horizontalInteception,
       // 3 = corner]
 
-      if (wall[0] != 0)
+      if (!wall.Contains(0))
       {
         List<int> i = Intercept(obs);
 
@@ -597,16 +621,19 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         {
           for (int j = i[i[0] + 1] + 1; j < i.Count; j++)
           {
-            crossed = InterceptedPanelHorizontal(obs.Branch(2), i[j], 8);
+            crossed = InterceptedPanelHorizontal(obs.Branch(2), i[j], 8, false);
           }
         }
 
-        if (wall[0] == 1)
+        for (int j = 0; j < wall.Count; j++)
         {
-          crossed = InterceptedPanelVertical(obs.Branch(4), wall[1], 8);
-          type = type.Replace('W', 'B');
+          if (wall[j] == 1)
+          {
+            crossed = InterceptedPanelVertical(obs.Branch(4), j, 8);
+            type = type.Replace('W', 'B');
+          }
+          if (wall[j] == 2) crossed = InterceptedPanelHorizontal(obs.Branch(4), j, 8, true);
         }
-        if (wall[0] == 2) crossed = InterceptedPanelHorizontal(obs.Branch(4), wall[1], 8);
       }
 
       Name();
@@ -708,19 +735,28 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       else { return new bool[] { false, false }; }
     }
 
-    public bool[] InterceptedPanelHorizontal(List<Polyline> obs, int i, double fuga)
+    public bool[] InterceptedPanelHorizontal(List<Polyline> obs, int i, double fuga, bool wall)
     {
-      // Funziona solo per rettangoli orizzontali centrati sui pannelli
+      // wall = false: per rettangoli orizzontali centrati sui pannelli
+      // wall = true: rettangoli alti più di un pannello
       // Viene considerata solo distanza X-Y
 
       List<Point3d> p = new List<Point3d> { pl[0], pl[1] };
-      List<Point3d> pObs = new List<Point3d> { obs[i][0], obs[i][1], obs[i][2], obs[i][3] };
-      pObs.OrderBy(point => point.Z);
+
+      List<Point3d> pObs = obs[i].Select(point => point).ToList();
+      pObs.RemoveAt(pObs.Count - 1);
+      pObs = pObs.OrderBy(point => point.Z).ToList();
+      double[] zObs = new double[] { pObs[0].Z, pObs[3].Z };
       pObs.RemoveRange(2, 2);
+      pObs = pObs.OrderBy(point => new Point3d(point.X, point.Y, 0).DistanceTo(gridOriginZ0)).ToList();
 
-      pObs = pObs.OrderBy(point => new Point3d(point.X, point.Y, 0).DistanceTo(gridOrigin)).ToList();
+      bool leftObs = new Point3d(pObs[0].X, pObs[0].Y, 0).DistanceTo(gridOriginZ0) < 0.01;
+      bool a = new Point3d(pl[1].X, pl[1].Y, 0).DistanceTo(gridOriginZ0) > new Point3d(pObs[1].X, pObs[1].Y, 0).DistanceTo(gridOriginZ0);
+      bool b = new Point3d(pObs[1].X, pObs[1].Y, 0).DistanceTo(gridOriginZ0) > new Point3d(pl[0].X, pl[0].Y, 0).DistanceTo(gridOriginZ0);
+      bool c = new Point3d(pl[1].X, pl[1].Y, 0).DistanceTo(gridOriginZ0) > new Point3d(pObs[0].X, pObs[0].Y, 0).DistanceTo(gridOriginZ0);
+      bool d = new Point3d(pObs[0].X, pObs[0].Y, 0).DistanceTo(gridOriginZ0) > new Point3d(pl[0].X, pl[0].Y, 0).DistanceTo(gridOriginZ0);
 
-      if (new Point3d(pObs[0].X, pObs[0].Y, 0).DistanceTo(gridOrigin) > 0.01)
+      if (!leftObs && (c && d))
       {
         List<Point3d> tmp = new List<Point3d>()
         {
@@ -733,11 +769,10 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
         pl = new Polyline(tmp);
 
-        type = "F";
-
-        return new bool[] { /*false*/true, false };
+        if (new Point3d(p[0].X, p[0].Y, 0).DistanceTo(gridOriginZ0) <= 0.01) type = "J";
+        else type = "F";
       }
-      else if (pl[1].DistanceTo(gridOrigin) > pObs[1].DistanceTo(gridOrigin))
+      else if (leftObs && a && b)
       {
         List<Point3d> tmp = new List<Point3d>()
         {
@@ -750,14 +785,14 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
         pl = new Polyline(tmp);
 
-        type = "E";
+        if (new Point3d(pl[1].X, pl[1].Y, 0).DistanceTo(new Point3d(border[1].X, border[1].Y, 0)) < 0.01) { type = "I"; }
+        else type = "E";
+      }
 
-        return new bool[] { /*false*/true, false };
-      }
-      else
-      {
-        return new bool[] { true, false };
-      }
+      // wall = t: return [F,F] and keep the panel
+      // wall = f: return [T,F] to name B panel (i+1), (i-1)
+      if (wall) return new bool[] { false, false };
+      else return new bool[] { true, false };
     }
 
     public void InterceptedPanelVarious(List<Polyline> obs)
@@ -801,12 +836,15 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       }
     }
 
-    public int[] InterceptedPanelWall(List<Polyline> obs)
+    public List<int> InterceptedPanelWall(List<Polyline> obs)
     {
-      int[] result = new int[2] { -1, -1 };
+      List<int> result = new List<int>();
 
       foreach (Polyline polyline in obs)
       {
+        int i = obs.IndexOf(polyline);
+        result.Add(-1);
+
         List<Point3d> pObs = polyline.Select(point => point).ToList();
         pObs.RemoveAt(pObs.Count - 1);
         pObs = pObs.OrderBy(point => point.Z).ToList();
@@ -824,29 +862,27 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         bool b = new Point3d(pObs[1].X, pObs[1].Y, 0).DistanceTo(gridOriginZ0) > new Point3d(pl[0].X, pl[0].Y, 0).DistanceTo(gridOriginZ0);
         bool c = new Point3d(pl[1].X, pl[1].Y, 0).DistanceTo(gridOriginZ0) > new Point3d(pObs[0].X, pObs[0].Y, 0).DistanceTo(gridOriginZ0);
         bool d = new Point3d(pObs[0].X, pObs[0].Y, 0).DistanceTo(gridOriginZ0) > new Point3d(pl[0].X, pl[0].Y, 0).DistanceTo(gridOriginZ0);
-        bool horizontalIntersection = (a && b) | (c && d);
+        bool horizontalIntersection = (a && b) || (c && d);
 
         if (horizontalIn && verticalIn)
         {
-          result.SetValue(0, 0);
+          result[i] = 0;
           crossed = new bool[] { true, true };
         }
         else if (verticalIntersection && horizontalIn)
         {
-          result.SetValue(1, 0);
-          result.SetValue(obs.IndexOf(polyline), 1);
+          result[i] = 1;
         }
         else if (horizontalIntersection && verticalIn)
         {
-          if (result[0] == -1)
+          if (result[i] == -1)
           {
-            result.SetValue(2, 0);
-            result.SetValue(obs.IndexOf(polyline), 1);
+            result[i] = 2;
           }
         }
         else if (horizontalIntersection && verticalIntersection)
         {
-          result.SetValue(3, 0);
+          result[i] = 3;
           type += "*B*C";
         }
       }
