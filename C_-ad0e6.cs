@@ -72,7 +72,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
     this.archive = new List<string>();
     this.names = new DataTree<string>();
     types = new DataTree<string>();
-    toExport = new List<string> { "Type,Width,Heigh,Marca,Facciata" };
+    toExport = new List<string> { "Type,Width,Heigh,Marca,Facciata,Tin" };
     normals = new List<Vector3d>();
 
     foreach (Grid3d grid in facade.grids)
@@ -492,6 +492,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         {
           panels[i + 1].type += "*D";
           panels[i + 1].tin = true;
+          panels[i + 1].toExcel += "," + panels[i + 1].width.ToString();
         }
       }
 
@@ -517,6 +518,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
           {
             panels[i + 1].type += "*B";
             panels[i + 1].tin = true;
+            panels[i + 1].toExcel += "," + panels[i + 1].width.ToString();
           }
         }
         else if (Math.Abs(panels[i].pl[3].Z - height[1].Z) < 0.01 && !panels[i].type.Contains('B'))

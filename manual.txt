@@ -1,0 +1,8 @@
+Obstacles:
+> ALWAYS 5 LAYERS OF OBSTACLES
+> windows must be centerend where the panel should be
+> horizontal obstacles must start/finish on the border ine
+> walls obstacles must start/finish on the border ine
+
+Borders:
+> polylines have to be drawn and referenced by hand. It is is udeful to draw them in reverse order (Rhion will remember the last drawn)
