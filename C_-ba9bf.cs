@@ -203,6 +203,16 @@ public abstract class Script_Instance_ba9bf : GH_ScriptInstance
       k = new int[] { 10, 169, 194, 255 };
       return k;
     }
+    else if (layerName == "J")
+    {
+      k = new int[] { 0, 116, 158, 255 };
+      return k;
+    }
+    else if (layerName == "I")
+    {
+      k = new int[] { 0, 60, 69, 255 };
+      return k;
+    }
     else
     {
       k = new int[] { 227, 208, 61, 255 };

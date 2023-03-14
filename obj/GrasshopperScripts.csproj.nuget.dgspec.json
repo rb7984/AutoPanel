@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\riccardo\\source\\repos\\GH\\AutoPanel\\GrasshopperScripts.csproj": {}
+    "C:\\Users\\riccardo\\Desktop\\Links\\REPO_VS2\\GH\\AutoPanel\\GrasshopperScripts.csproj": {}
   },
   "projects": {
-    "C:\\Users\\riccardo\\source\\repos\\GH\\AutoPanel\\GrasshopperScripts.csproj": {
+    "C:\\Users\\riccardo\\Desktop\\Links\\REPO_VS2\\GH\\AutoPanel\\GrasshopperScripts.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\riccardo\\source\\repos\\GH\\AutoPanel\\GrasshopperScripts.csproj",
+        "projectUniqueName": "C:\\Users\\riccardo\\Desktop\\Links\\REPO_VS2\\GH\\AutoPanel\\GrasshopperScripts.csproj",
         "projectName": "GrasshopperScripts",
-        "projectPath": "C:\\Users\\riccardo\\source\\repos\\GH\\AutoPanel\\GrasshopperScripts.csproj",
+        "projectPath": "C:\\Users\\riccardo\\Desktop\\Links\\REPO_VS2\\GH\\AutoPanel\\GrasshopperScripts.csproj",
         "packagesPath": "C:\\Users\\riccardo\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\riccardo\\source\\repos\\GH\\AutoPanel\\obj\\",
+        "outputPath": "C:\\Users\\riccardo\\Desktop\\Links\\REPO_VS2\\GH\\AutoPanel\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

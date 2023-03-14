@@ -21,7 +21,7 @@ using Rhino.Render.ChangeQueue;
 using System.ComponentModel;
 using System.Drawing.Printing;
 using System.Text;
-
+using System.Text.RegularExpressions;
 
 /// <summary>
 /// This class will be instantiated on demand by the Script component.
@@ -249,7 +249,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
             tracker++;
           }
 
-          if (grid[j].panels[i].type.Contains("C*B")) 
+          if (grid[j].panels[i].type.Contains("C*B"))
           {
             grid[j].panels[i].type = grid[j].panels[i].type.Replace("C*B", "B*C");
           }
@@ -467,7 +467,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         {
           panels[i - 1].type += "*W";
           panels[i + 1].type += "*B";
-          
+
           if (panels[i].type.Contains("E") || panels[i].type.Contains("F") || panels[i].type.Contains("J") || panels[i].type.Contains("I"))
           {
             panels[i].crossed[0] = false;
@@ -491,7 +491,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         if (panels[i].type.Contains('B'))
         {
           panels[i + 1].type += "*D";
-          panels[i + 1].tin = true;
+          panels[i + 1].tin = panels[i + 1].width;
           panels[i + 1].toExcel += "," + panels[i + 1].width.ToString();
         }
       }
@@ -517,7 +517,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
           if (!panels[i + 1].type.Contains('B'))
           {
             panels[i + 1].type += "*B";
-            panels[i + 1].tin = true;
+            panels[i + 1].tin = panels[i + 1].width;
             panels[i + 1].toExcel += "," + panels[i + 1].width.ToString();
           }
         }
@@ -549,14 +549,29 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
     public List<string> TypeTags(List<PanelC41> panels)
     {
-      List<string> types = panels.Select(i => i.type.Split('.')[0]).ToList();
+      //List<string> types = panels.Select(i => i.type.Split('.')[0]).ToList();
+      List<string> types = new List<string>();
+      foreach (PanelC41 panel in panels)
+      {
+        string[] type = panel.type.Split('.');
+        var adding = type[0];
+        if (type.Length > 1 && type[1].Contains('B'))
+        {
+          adding += "*B";
+        }
+        if (type.Length > 1 && type[1].Contains('C'))
+        {
+          adding += "*C";
+        }
+        types.Add(adding);
+      }
 
       return types;
     }
 
     public List<string> ToExport(List<PanelC41> panels)
     {
-      List<string> export = panels.Select(i => i.toExcel).ToList();
+      List<string> export = panels.Select(i => i.toExcel + "," + i.tin.ToString()).ToList();
 
       return export;
     }
@@ -567,7 +582,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
     //fields
     public double width;
     public double height;
-    public bool tin;
+    public double tin;
     public int cCount;
 
     public Polyline pl;
@@ -586,7 +601,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
     public PanelC41(List<Point3d> list, DataTree<Polyline> obs, Polyline border)
     {
       type = "A";
-      tin = false;
+      tin = 0;
       cCount = -1;
 
       crossed = new bool[2] { false, false };
@@ -771,8 +786,8 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
         pl = new Polyline(tmp);
 
-        if (new Point3d(p[0].X, p[0].Y, 0).DistanceTo(gridOriginZ0) <= 0.01) type = "J";
-        else type = "F";
+        if (new Point3d(p[0].X, p[0].Y, 0).DistanceTo(gridOriginZ0) <= 0.01) { type = type.Replace("A", "J"); }
+        else type = type.Replace("A", "F");
       }
       else if (leftObs && a && b)
       {
@@ -787,8 +802,8 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
         pl = new Polyline(tmp);
 
-        if (new Point3d(pl[1].X, pl[1].Y, 0).DistanceTo(new Point3d(border[1].X, border[1].Y, 0)) < 0.01) { type = "I"; }
-        else type = "E";
+        if (new Point3d(pl[1].X, pl[1].Y, 0).DistanceTo(new Point3d(border[1].X, border[1].Y, 0)) < 0.01) { type = type.Replace("A", "I"); }
+        else type = type.Replace("A", "E");
       }
 
       // wall = t: return [F,F] and keep the panel
@@ -911,7 +926,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
   }
 
-  public List<string> ArchiveTypes(List<PanelC41> panelC41s)
+  public List<string> ArchiveTypesOld(List<PanelC41> panelC41s)
   {
     List<string> list;
     var orderedPanels = panelC41s.OrderBy(panelC41 => panelC41.type);
@@ -928,6 +943,15 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
     }
 
     return arc;
+  }
+
+  public List<string> ArchiveTypes(List<PanelC41> panelC41s)
+  {
+    List<string> list= panelC41s.Select(x => Regex.Replace( x.type, @"[\d.]", String.Empty)).ToList();
+
+    list = list.Distinct().ToList();
+
+    return list;
   }
   #endregion
 }
