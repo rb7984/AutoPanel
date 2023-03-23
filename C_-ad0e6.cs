@@ -23,6 +23,7 @@ using System.Drawing.Printing;
 using System.Text;
 using System.Text.RegularExpressions;
 
+
 /// <summary>
 /// This class will be instantiated on demand by the Script component.
 /// </summary>
@@ -235,12 +236,22 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
           //LEFT
           if (Math.Abs(l) < fugaMax)
           {
-            grid[j].panels[i].type = grid[j].panels[i].type.Replace("A", BorderPanel(grids.IndexOf(grid[j]), 0));
+            var nn = BorderPanel(grids.IndexOf(grid[j]), 0);
+            if (grid[j].panels[i].type.Contains('F') || grid[j].panels[i].type.Contains('E'))
+            {
+              grid[j].panels[i].type = grid[j].panels[i].type.Replace("E", "K");
+            }
+            else { grid[j].panels[i].type = grid[j].panels[i].type.Replace("A", nn); }
           }
           //RIGHT
           if (Math.Abs(r) < fugaMax)
           {
-            grid[j].panels[i].type = grid[j].panels[i].type.Replace("A", BorderPanel(grids.IndexOf(grid[j]), 1));
+            var nn = BorderPanel(grids.IndexOf(grid[j]), 1);
+            if (grid[j].panels[i].type.Contains('E') || grid[j].panels[i].type.Contains('F'))
+            {
+              grid[j].panels[i].type = grid[j].panels[i].type.Replace("E", "K");
+            }
+            else { grid[j].panels[i].type = grid[j].panels[i].type.Replace("A", nn); }
           }
 
           if (grid[j].panels[i].type.Contains("C"))
@@ -334,7 +345,12 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
       panels = Panels(pointCoordinates, zCoordinates);
 
-      OrderOutput(panels);
+      //TEST
+      OrderOutputH(panels);
+      PostPanelsWindows(panels);
+      //TEST
+
+      OrderOutputV(panels);
 
       PostPanels(panels);
     }
@@ -438,14 +454,16 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
           pts.AddRange(points.GetRange(0, 4));
 
           PanelC41 tmpPanel = new PanelC41(points, obs, border);
-          if (!tmpPanel.crossed[1]) panels.Add(tmpPanel);
+          //EDIT
+          //if (!tmpPanel.crossed[1]) panels.Add(tmpPanel);
+          if (!(tmpPanel.crossed[0] && tmpPanel.crossed[1])) panels.Add(tmpPanel);
         }
       }
 
       return panels;
     }
 
-    public void OrderOutput(List<PanelC41> panels)
+    public void OrderOutputV(List<PanelC41> panels)
     {
       List<PanelC41> tmp;
 
@@ -454,6 +472,46 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       this.panels.Clear();
 
       this.panels.AddRange(tmp);
+    }
+
+    public void OrderOutputH(List<PanelC41> panels)
+    {
+      List<PanelC41> tmp;
+
+      tmp = panels.OrderBy(a => a.firstCorner.Z).ThenBy(b => new Point3d(b.firstCorner.X, b.firstCorner.Y, 0).DistanceTo(border[0])).ToList();
+
+      this.panels.Clear();
+
+      this.panels.AddRange(tmp);
+    }
+
+    void PostPanelsWindows(List<PanelC41> panels)
+    {
+      List<int> tmp = new List<int>();
+
+      // panels[i] = Panel inside of windows
+      for (int i = 1; i < panels.Count - 1; i++)
+      {
+        if (panels[i].crossed[0] == false && panels[i].crossed[1] == true)
+        {
+          if (!panels[i - 1].type.Contains('E'))
+          {
+            panels[i - 1].type = panels[i - 1].type.Replace('A', 'F');
+          }
+          else
+          {
+            panels[i - 1].type = panels[i - 1].type.Replace('E', 'K');
+          }
+          if (!panels[i + 1].type.Contains('F'))
+          {
+            panels[i + 1].type = panels[i + 1].type.Replace('A', 'E');
+          }
+          else
+          {
+            panels[i + 1].type = panels[i + 1].type.Replace('F', 'K');
+          }
+        }
+      }
     }
 
     void PostPanels(List<PanelC41> panels)
@@ -468,7 +526,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
           panels[i - 1].type += "*W";
           panels[i + 1].type += "*B";
 
-          if (panels[i].type.Contains("E") || panels[i].type.Contains("F") || panels[i].type.Contains("J") || panels[i].type.Contains("I"))
+          if (panels[i].type.Contains("E") || panels[i].type.Contains("F") || panels[i].type.Contains("J") || panels[i].type.Contains("I") || panels[i].type.Contains("K"))
           {
             panels[i].crossed[0] = false;
           }
@@ -476,6 +534,13 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
           {
             tmp.Add(i);
           }
+        }
+        if (panels[i].crossed[0] == false && panels[i].crossed[1] == true)
+        {
+          panels[i - 1].type = panels[i - 1].type.Replace("A", "KZ");
+          panels[i + 1].type = panels[i + 1].type.Replace("A", "KZ");
+
+          tmp.Add(i);
         }
       }
 
@@ -505,6 +570,10 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         if (panels[i].type.Contains('D'))
         {
           panels[i].type = panels[i].type.Replace('D', 'B');
+        }
+        if (panels[i].type.Contains('Z'))
+        {
+          panels[i].type = panels[i].type.Replace("Z", "*B");
         }
       }
 
@@ -615,7 +684,6 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       gridOriginZ0 = new Point3d(border[0].X, border[0].Y, 0);
       this.border = border;
 
-      //int[] wall = InterceptedPanelWall(obs.Branch(4));
       List<int> wall = InterceptedPanelWall(obs.Branch(4));
 
       // [0 = internal,
@@ -714,7 +782,9 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
       if (zObs.Max() >= z.Max() && zObs.Min() <= z.Min())
       {
-        return new bool[] { true, true };
+        //EDIT
+        //return new bool[] { true, true };
+        return new bool[] { false, true };
       }
       else if (z.Max() > zObs.Max())
       {
@@ -947,7 +1017,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
   public List<string> ArchiveTypes(List<PanelC41> panelC41s)
   {
-    List<string> list= panelC41s.Select(x => Regex.Replace( x.type, @"[\d.]", String.Empty)).ToList();
+    List<string> list = panelC41s.Select(x => Regex.Replace(x.type, @"[\d.]", String.Empty)).ToList();
 
     list = list.Distinct().ToList();
 
