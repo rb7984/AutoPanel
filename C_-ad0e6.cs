@@ -64,16 +64,16 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
   /// they will have a default value.
   /// </summary>
   #region Runscript
-  private void RunScript(DataTree<object> x, DataTree<object> y, List<Polyline> z, ref object A, ref object baselines, ref object pl, ref object layerNames, ref object names, ref object archive, ref object freeTag, ref object export, ref object normalVectors)
+  private void RunScript(DataTree<object> x, DataTree<object> y, List<Polyline> z, DataTree<object> u, ref object B, ref object A, ref object baselines, ref object pl, ref object layerNames, ref object names, ref object archive, ref object freeTag, ref object export, ref object normalVectors)
   {
-    facade = new Facade(x, y, z);
+    facade = new Facade(x, y, z, u);
 
     panelC41s = new List<PanelC41>();
     plines = new DataTree<Polyline>();
     this.archive = new List<string>();
     this.names = new DataTree<string>();
     types = new DataTree<string>();
-    toExport = new List<string> { "Type,Width,Heigh,Marca,Facciata,Tin" };
+    toExport = new List<string> { "Type,Width,Heigh,Marca,Facciata,Tin,TinH,Sec" };
     normals = new List<Vector3d>();
 
     foreach (Grid3d grid in facade.grids)
@@ -89,6 +89,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
     this.archive.AddRange(ArchiveTypes(panelC41s));
 
+    B = facade.ints;
     A = facade.angles;
     baselines = facade.baseLines;
     pl = plines;
@@ -122,8 +123,11 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
     public int cCount;
 
+    //DELETE
+    public List<int> ints;
+
     //contructor
-    public Facade(DataTree<object> input, DataTree<object> obs, List<Polyline> baseline)
+    public Facade(DataTree<object> input, DataTree<object> obs, List<Polyline> baseline, DataTree<object> sec)
     {
       grids = new List<Grid3d>();
       cCount = 0;
@@ -132,8 +136,10 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       var counter = FacadeCount(input);
       var pointer = 0;
 
+      // Angles
       FillAngles(baseline);
 
+      // Populate Datatrees for Grids
       for (int i = 0; i < counter.Count; i++)
       {
         DataTree<object> tmp = new DataTree<object>();
@@ -158,13 +164,10 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         grids.Add(tmpGrid);
       }
 
-      //for (int i = 0; i < grids.Count; i++)
-      //{
-      //  PostPanels(grids[i]);
-      //}
+      // Left Border, Right Border, Name Uniformation and Sec
+      PostPanels(grids, sec);
 
-      PostPanels(grids);
-
+      // Uniform panelC41.ToExport
       CorrectExport();
     }
 
@@ -188,6 +191,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       }
 
       // k = [3,3,3]
+      ints = k;
       return k;
     }
 
@@ -221,54 +225,109 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       }
     }
 
-    public void PostPanels(List<Grid3d> grid)
+    public void PostPanels(List<Grid3d> grid, DataTree<object> sec)
     {
       int fugaMax = 16;
       int tracker = 0;
 
       for (int j = 0; j < grid.Count; j++)
       {
+        List<Polyline> secs = sec.Branch(j).Select(p => (PolylineCurve)p).ToList().Select(pp => pp.ToPolyline()).ToList();
+
         for (int i = 0; i < grid[j].panels.Count; i++)
         {
           double l = new Point3d(grid[j].panels[i].pl[0].X, grid[j].panels[i].pl[0].Y, 0).DistanceTo(new Point3d(grid[j].border[0].X, grid[j].border[0].Y, 0));
           double r = new Point3d(grid[j].panels[i].pl[1].X, grid[j].panels[i].pl[1].Y, 0).DistanceTo(new Point3d(grid[j].border[1].X, grid[j].border[1].Y, 0));
 
-          //LEFT
+          // LEFT
           if (Math.Abs(l) < fugaMax)
           {
-            var nn = BorderPanel(grids.IndexOf(grid[j]), 0);
+            var nn = BorderPanelName(grids.IndexOf(grid[j]), 0);
             if (grid[j].panels[i].type.Contains('F') || grid[j].panels[i].type.Contains('E'))
             {
               grid[j].panels[i].type = grid[j].panels[i].type.Replace("E", "K");
             }
             else { grid[j].panels[i].type = grid[j].panels[i].type.Replace("A", nn); }
+
+            //BorderPanelReduction(grid[j].panels[i], j, 0);
           }
-          //RIGHT
+
+          // RIGHT
           if (Math.Abs(r) < fugaMax)
           {
-            var nn = BorderPanel(grids.IndexOf(grid[j]), 1);
+            var nn = BorderPanelName(grids.IndexOf(grid[j]), 1);
             if (grid[j].panels[i].type.Contains('E') || grid[j].panels[i].type.Contains('F'))
             {
               grid[j].panels[i].type = grid[j].panels[i].type.Replace("E", "K");
             }
             else { grid[j].panels[i].type = grid[j].panels[i].type.Replace("A", nn); }
+
+            //BorderPanelReduction(grid[j].panels[i], j, 1);
           }
 
+          // C Tracker
           if (grid[j].panels[i].type.Contains("C"))
           {
             grid[j].panels[i].cCount = tracker;
             tracker++;
           }
 
+          // Name correction (B*C)
           if (grid[j].panels[i].type.Contains("C*B"))
           {
             grid[j].panels[i].type = grid[j].panels[i].type.Replace("C*B", "B*C");
           }
+
+          // SEC
+          PanelSec(grid[j].panels[i], secs);
         }
       }
     }
 
-    public string BorderPanel(int i, int a)
+    public void BorderPanelReduction(PanelC41 panel, int gridIndex, int leftRight)
+    {
+      // leftRight = 0: LEFT
+      // leftRight = 1: RIGHT
+
+      //if (panel.type.Contains('.'))
+      //{
+      //  string[] keys = new string[] { "G", "H", "I", "J" };
+
+      //}
+
+      //string message = "test of mine";
+      //string[] keys = new string[] { "test2", "test" };
+
+      //string sKeyResult = keys.FirstOrDefault<string>(s => message.Contains(s));
+
+      //switch (sKeyResult)
+      //{
+      //  case "test":
+      //    Console.WriteLine("yes for test");
+      //    break;
+      //  case "test2":
+      //    Console.WriteLine("yes for test2");
+      //    break;
+      //}
+
+      //https://stackoverflow.com/questions/7175580/use-string-contains-with-switch
+    }
+
+    public void PanelSec(PanelC41 panel, List<Polyline> pls)
+    {
+      foreach (Polyline pl in pls)
+      {
+        var tmp = Intersection.CurveCurve(pl.ToPolylineCurve(), panel.pl.ToPolylineCurve(), 0.1, 0.1);
+
+        if (tmp.Count != 0)
+        {
+          panel.sec = Math.Round(panel.pl[0].DistanceTo(tmp[0].PointA));
+          panel.tinH = panel.height - 6;
+        }
+      }
+    }
+
+    public string BorderPanelName(int i, int a)
     {
       double angle = angles[(2 * i) + a];
 
@@ -301,8 +360,14 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         int a = grids.IndexOf(grid);
         foreach (PanelC41 p in grid.panels)
         {
-          p.toExcel = p.type + "," + p.width.ToString() + "," + p.height.ToString() +
-        "," + p.type + "." + p.width.ToString() + "." + p.height.ToString() + "," + a.ToString();
+          p.toExcel = p.type + ","
+            + p.width.ToString() + ","
+            + p.height.ToString() + ","
+            + p.type + "." + p.width.ToString() + "." + p.height.ToString() + ","
+            + a.ToString() + ","
+            + p.tin.ToString() + ","
+            + p.tinH.ToString() + ","
+            + p.sec.ToString();
         }
       }
     }
@@ -379,7 +444,9 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       // i = 1 perché il primo è il bordo
       for (int i = 1; i < param.BranchCount; i++)
       {
-        int fuga = (int)Convert.ToInt64(param.Branch(i)[0].ToString().Split('-')[2].ToString().Split('.')[0]);
+
+        double fuga = Convert.ToInt64(param.Branch(i)[0].ToString().Split('-')[2].ToString().Split('.')[0]);
+        if (fuga == 0) { fuga += 0.1; }
         char dir = param.Branch(i)[0].ToString().Split('-')[1][1];
 
         List<Point3d> tmpP = new List<Point3d>();
@@ -405,7 +472,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
             Point3d tmpPoint = tmpPl.PointAtStart;
             Point3d tp = new Point3d(tmpPl.PointAt(0).X, tmpPl.PointAt(0).Y, border.PointAt(0).Z);
             Circle c = new Circle(tp, fuga);
-            var events = Intersection.CurveCurve(border.ToNurbsCurve(), c.ToNurbsCurve(), 0.1, 0.1);
+            var events = Intersection.CurveCurve(border.ToNurbsCurve(), c.ToNurbsCurve(), 0.01, 0.01);
             foreach (IntersectionEvent ie in events) { tmpP.Add(new Point3d(ie.PointA)); }
           }
 
@@ -640,10 +707,11 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
     public List<string> ToExport(List<PanelC41> panels)
     {
-      List<string> export = panels.Select(i => i.toExcel + "," + i.tin.ToString()).ToList();
+      List<string> export = panels.Select(i => i.toExcel).ToList();
 
       return export;
     }
+
   }
 
   public class PanelC41
@@ -652,6 +720,8 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
     public double width;
     public double height;
     public double tin;
+    public double tinH;
+    public double sec;
     public int cCount;
 
     public Polyline pl;
@@ -671,6 +741,8 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
     {
       type = "A";
       tin = 0;
+      tinH = 0;
+      sec = 0;
       cCount = -1;
 
       crossed = new bool[2] { false, false };

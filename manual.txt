@@ -1,8 +1,12 @@
+dir:
+> FORMAT dir-0v-2.2
+
 Obstacles:
 > ALWAYS 5 LAYERS OF OBSTACLES
 > windows must be centerend where the panel should be
-> horizontal obstacles must start/finish on the border ine
+> windows must intersect in some way the panel, but only Z will be evaluated 
+> horizontal obstacles must start/finish on the border line
 > walls obstacles must start/finish on the border ine
 
 Borders:
-> polylines have to be drawn and referenced by hand. It is is udeful to draw them in reverse order (Rhion will remember the last drawn)
+> polylines have to be drawn and referenced by hand. It is is useful to draw them in reverse order (Rhino will remember the last drawn)

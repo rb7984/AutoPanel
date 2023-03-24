@@ -80,7 +80,7 @@ public abstract class Script_Instance_ff93f : GH_ScriptInstance
     double len;
     double tolerance;
 
-    if (type == "A")
+    if (type.Contains('A'))
     {
       tolerance = 90;
       len = pl[0].DistanceTo(pl[1]);
