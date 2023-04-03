@@ -343,7 +343,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
             angle = (180 / Math.PI) * angle;
             angle = (360 - angle) / 2;
 
-            if (Math.Abs(angle - 45) > 0.1 && angle > 0)
+            if (Math.Abs(angle - 45) > 0.1 && /*angle > 0 && angle < 90*/ Math.Abs(angle - 45) < 45)
             {
               reduce(panel, 12, 1);
 
@@ -383,7 +383,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
             angle2 = (180 / Math.PI) * angle2;
             angle2 = (360 - angle2) / 2;
 
-            if (Math.Abs(angle2 - 45) > 0.1 && angle2 > 0)
+            if (Math.Abs(angle2 - 45) > 0.1 && /*angle2 > 0 && angle2 < 90*/ Math.Abs(angle2 - 45) < 45)
             {
               reduce(panel, 12, 0);
 
@@ -422,16 +422,6 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
       }
     }
-
-    //public Point3d PanelReduction(PanelC41 panel, int reduction, int leftRight)
-    //{
-    //  Point3d tmpPoint = panel.pl[leftRight];
-    //  Circle c = new Circle(tmpPoint, reduction);
-
-    //  var events = Intersection.CurveCurve(panel.pl.ToNurbsCurve(), c.ToNurbsCurve(), 0.01, 0.01);
-
-    //  return new Point3d(events[0].PointA);
-    //}
 
     public void PanelSec(PanelC41 panel, List<Polyline> pls)
     {
