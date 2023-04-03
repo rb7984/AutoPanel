@@ -3,11 +3,10 @@ dir:
 
 Obstacles:
 > ALWAYS 5 LAYERS OF OBSTACLES
-> windows must be centerend where the panel should be
-> windows must intersect in some way the panel, but only Z will be evaluated 
+> windos must touch nerby panels
 > horizontal obstacles must start/finish on the border line
 > walls obstacles must start/finish on the border line
-> i walls devono arrivare al bordo del pannelllo desiderato
+> walls will produce panels with the same border
 
 Borders:
 > polylines have to be drawn and referenced by hand. It is is useful to draw them in reverse order (Rhino will remember the last drawn)

@@ -280,49 +280,9 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
           // SEC
           PanelSec(grid[j].panels[i], secs);
-        }
-      }
-    }
 
-    public void BorderPanelReduction(PanelC41 panel, int gridIndex, int leftRight)
-    {
-      // leftRight = 0: LEFT
-      // leftRight = 1: RIGHT
-
-      //if (panel.type.Contains('.'))
-      //{
-      //  string[] keys = new string[] { "G", "H", "I", "J" };
-
-      //}
-
-      //string message = "test of mine";
-      //string[] keys = new string[] { "test2", "test" };
-
-      //string sKeyResult = keys.FirstOrDefault<string>(s => message.Contains(s));
-
-      //switch (sKeyResult)
-      //{
-      //  case "test":
-      //    Console.WriteLine("yes for test");
-      //    break;
-      //  case "test2":
-      //    Console.WriteLine("yes for test2");
-      //    break;
-      //}
-
-      //https://stackoverflow.com/questions/7175580/use-string-contains-with-switch
-    }
-
-    public void PanelSec(PanelC41 panel, List<Polyline> pls)
-    {
-      foreach (Polyline pl in pls)
-      {
-        var tmp = Intersection.CurveCurve(pl.ToPolylineCurve(), panel.pl.ToPolylineCurve(), 0.1, 0.1);
-
-        if (tmp.Count != 0)
-        {
-          panel.sec = Math.Round(panel.pl[0].DistanceTo(tmp[0].PointA));
-          panel.tinH = panel.height - 6;
+          // REDUCTION
+          BorderPanelReduction(grid[j].panels[i], j);
         }
       }
     }
@@ -353,6 +313,140 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       }
     }
 
+    public void BorderPanelReduction(PanelC41 panel, int gridIndex)
+    {
+      Point3d p = new Point3d();
+
+      var reduce = new Action<PanelC41, int, int>((panelPass, reduction, leftRight) =>
+      {
+        Point3d tmpPoint = panel.pl[leftRight];
+        Circle c = new Circle(tmpPoint, reduction);
+
+        var events = Intersection.CurveCurve(panel.pl.ToNurbsCurve(), c.ToNurbsCurve(), 0.01, 0.01);
+
+        p = new Point3d(events[0].PointA);
+
+      });
+
+      if (panel.type.Contains('.'))
+      {
+        string[] keys = new string[] { "G", "H", "I", "J" };
+
+        string sKeyResult = keys.FirstOrDefault<string>(s => panel.type.Contains(s));
+
+        switch (sKeyResult)
+        {
+          case "G":
+          case "I":
+
+            double angle = angles[gridIndex * 2 + 1];
+            angle = (180 / Math.PI) * angle;
+            angle = (360 - angle) / 2;
+
+            if (Math.Abs(angle - 45) > 0.1 && angle > 0)
+            {
+              reduce(panel, 12, 1);
+
+              List<Point3d> list = new List<Point3d>
+              {
+                panel.pl[0],
+                p,
+                new Point3d(p.X,p.Y, panel.pl[2].Z),
+                panel.pl[3],
+                panel.pl[0]
+              };
+
+              panel.pl = new Polyline(list);
+            }
+            else if (Math.Abs(angle - 45) < 0.1)
+            {
+              reduce(panel, 10, 1);
+
+              List<Point3d> list = new List<Point3d>
+              {
+                panel.pl[0],
+                p,
+                new Point3d(p.X,p.Y, panel.pl[2].Z),
+                panel.pl[3],
+                panel.pl[0]
+              };
+
+              panel.pl = new Polyline(list);
+            }
+
+            break;
+
+          case "H":
+          case "J":
+
+            double angle2 = angles[gridIndex * 2];
+            angle2 = (180 / Math.PI) * angle2;
+            angle2 = (360 - angle2) / 2;
+
+            if (Math.Abs(angle2 - 45) > 0.1 && angle2 > 0)
+            {
+              reduce(panel, 12, 0);
+
+              List<Point3d> list = new List<Point3d>
+              {
+                p,
+                panel.pl[1],
+                panel.pl[2],
+                new Point3d(p.X, p.Y, panel.pl[3].Z),
+                p
+              };
+
+              panel.pl = new Polyline(list);
+            }
+            else if (Math.Abs(angle2 - 45) < 0.1)
+            {
+              reduce(panel, 10, 0);
+
+              List<Point3d> list = new List<Point3d>
+              {
+                p,
+                panel.pl[1],
+                panel.pl[2],
+                new Point3d(p.X, p.Y, panel.pl[3].Z),
+                p
+              };
+
+              panel.pl = new Polyline(list);
+            }
+
+            break;
+
+          default:
+            break;
+        }
+
+      }
+    }
+
+    //public Point3d PanelReduction(PanelC41 panel, int reduction, int leftRight)
+    //{
+    //  Point3d tmpPoint = panel.pl[leftRight];
+    //  Circle c = new Circle(tmpPoint, reduction);
+
+    //  var events = Intersection.CurveCurve(panel.pl.ToNurbsCurve(), c.ToNurbsCurve(), 0.01, 0.01);
+
+    //  return new Point3d(events[0].PointA);
+    //}
+
+    public void PanelSec(PanelC41 panel, List<Polyline> pls)
+    {
+      foreach (Polyline pl in pls)
+      {
+        var tmp = Intersection.CurveCurve(pl.ToPolylineCurve(), panel.pl.ToPolylineCurve(), 0.1, 0.1);
+
+        if (tmp.Count != 0)
+        {
+          panel.sec = Math.Round(panel.pl[0].DistanceTo(tmp[0].PointA));
+          panel.tinH = panel.height - 6;
+        }
+      }
+    }
+
     public void CorrectExport()
     {
       foreach (Grid3d grid in grids)
@@ -360,6 +454,10 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         int a = grids.IndexOf(grid);
         foreach (PanelC41 p in grid.panels)
         {
+          p.width = Math.Round(p.pl[0].DistanceTo(p.pl[1]));
+          p.height = Math.Round(p.pl[1].DistanceTo(p.pl[2]));
+          p.name = p.width.ToString() + '-' + p.height.ToString();
+
           p.toExcel = p.type + ","
             + p.width.ToString() + ","
             + p.height.ToString() + ","
@@ -781,12 +879,11 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
             crossed = InterceptedPanelHorizontal(obs.Branch(2), i[j], 8, false);
           }
         }
-
         for (int j = 0; j < wall.Count; j++)
         {
           if (wall[j] == 1)
           {
-            crossed = InterceptedPanelVertical(obs.Branch(4), j, 8);
+            crossed = InterceptedPanelVertical(obs.Branch(4), j, 0);
             type = type.Replace('W', 'B');
           }
           if (wall[j] == 2) crossed = InterceptedPanelHorizontal(obs.Branch(4), j, 8, true);
@@ -810,15 +907,21 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
     public List<int> Intercept(DataTree<Polyline> obs)
     {
+      // Intercept():
+      // > plines that intesect the panel ==> var tmp
+      // > plines that completely include the panel ==> var tmp2
+
       List<int> intercepted = new List<int>();
       intercepted.Add(0);
 
       // Branch(0) windows. Polylines centrate sul pannello verticalmente
       for (int i = 0; i < obs.Branch(0).Count; i++)
       {
-        var tmp = Intersection.CurveCurve(pl.ToPolylineCurve(), obs.Branch(0)[i].ToPolylineCurve(), 0.1, 0.1).Count;
+        //var tmp = Intersection.CurveCurve(pl.ToPolylineCurve(), obs.Branch(0)[i].ToPolylineCurve(), 0.1, 0.1).Count;
+        var tmp2 = GenericInterception(obs.Branch(0)[i]);
 
-        if (tmp != 0)
+        //if (tmp != 0)
+        if (tmp2)
         {
           intercepted.Add(i);
           intercepted[0]++;
@@ -839,8 +942,16 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         }
       }
 
-      //if (intercepted[0] == 0 && intercepted[intercepted[0] + 1] == 0) crossed = new bool[] { false, false };
-      //else crossed = new bool[] { true, true };
+      // intercepted structure:
+      //
+      //   0  1  2  3  4  5  6
+      //   |-----|  |--------|
+      // 
+      // [ 2, 2, 5, 3, 0, 7, 9]
+      //   ^  '  '  ^  '  '  '
+      //
+      //   pointer  pointer
+
       return intercepted;
     }
 
@@ -852,28 +963,29 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       double[] zObs = new double[] { obs[i][0].Z, obs[i][1].Z, obs[i][2].Z };
       double[] z = new double[] { pl[0].Z, pl[1].Z, pl[2].Z };
 
+      // pannelli interamente contenuti
       if (zObs.Max() >= z.Max() && zObs.Min() <= z.Min())
       {
-        //EDIT
-        //return new bool[] { true, true };
         return new bool[] { false, true };
       }
+      //pannelli intersecati sotto
       else if (z.Max() > zObs.Max())
       {
         double newZ = zObs.Max();
         List<Point3d> tmp = new List<Point3d>()
         {
-          new Point3d(pl[0].X, pl[0].Y, newZ+ fuga),
-          new Point3d(pl[1].X, pl[1].Y, newZ+ fuga),
+          new Point3d(pl[0].X, pl[0].Y, newZ + fuga),
+          new Point3d(pl[1].X, pl[1].Y, newZ + fuga),
           new Point3d(pl[2]),
           new Point3d(pl[3]),
-          new Point3d(pl[4].X, pl[4].Y, newZ+ fuga),
+          new Point3d(pl[4].X, pl[4].Y, newZ + fuga),
         };
 
         pl = new Polyline(tmp);
         if (!type.Contains('W')) type += "*W";
         return new bool[] { false, false };
       }
+      //pannelli intersecati sopra
       else if (z.Min() < zObs.Min())
       {
         double newZ = zObs.Min();
@@ -1047,6 +1159,34 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       }
 
       return result;
+    }
+
+    public bool GenericInterception(Polyline obs)
+    {
+      bool ret = false;
+
+      double[] z = new double[] { pl[1].Z, pl[2].Z };
+      int counter = 0;
+
+      List<Point3d> pObs = new List<Point3d> { obs[0], obs[1], obs[2], obs[3] };
+      pObs = pObs.OrderBy(point => point.Z).ToList();
+      double[] zObs = pObs.GetRange(1, 2).Select(point => point.Z).ToArray();
+
+      pObs.RemoveRange(2, 2);
+      pObs = pObs.OrderBy(point => new Point3d(point.X, point.Y, 0).DistanceTo(gridOriginZ0)).ToList();
+
+      // Pannelli circondati
+      bool panelIn = new Point3d(pObs[1].X, pObs[1].Y, 0).DistanceTo(gridOriginZ0) > new Point3d(pl[1].X, pl[1].Y, 0).DistanceTo(gridOriginZ0)
+        && new Point3d(pObs[0].X, pObs[0].Y, 0).DistanceTo(gridOriginZ0) < new Point3d(pl[0].X, pl[0].Y, 0).DistanceTo(gridOriginZ0)
+        && zObs[1] > z[1] && z[0] > zObs[0];
+
+      if (panelIn)
+      {
+        counter++;
+        ret = true;
+      }
+
+      return ret;
     }
 
     public void Detached(List<Polyline> det)
