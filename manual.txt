@@ -1,7 +1,8 @@
 dir:
-> FORMAT: dir-0border
+> FORMAT: dir-0b-border
           dir-0v-2.2
           dir-0h-2.2
+> polylines in dir-0b-border MUST have Z-coordinate equal to that of baseline
 
 Obstacles:
 > ALWAYS 5 LAYERS OF OBSTACLES

@@ -24,6 +24,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Linq.Expressions;
 
+
 /// <summary>
 /// This class will be instantiated on demand by the Script component.
 /// </summary>
@@ -89,7 +90,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
     this.archive.AddRange(ArchiveTypes(panelC41s));
 
-    B = facade.ints;
+    B = facade.baseLines;
     A = facade.angles;
     baselines = facade.baseLines;
     pl = plines;
@@ -494,14 +495,8 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       { obs.AddRange(y.Branch(i).Select(pl => (PolylineCurve)pl).ToList().Select(pl => pl.ToPolyline()).ToList(), new GH_Path(i)); }
 
       Borders(x.Branch(0)[1], ax);
-      try
-      {
-        OrderLines(param);
-      }
-      catch (Exception ex)
-      {
-        RhinoApp.WriteLine(ex.StackTrace);
-      }
+
+      OrderLines(param);
 
       pts = new List<Point3d>();
 
@@ -515,6 +510,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       OrderOutputV(panels);
 
       PostPanels(panels);
+
     }
 
     // Assegna height e normal
@@ -538,83 +534,81 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       List<Point3d> ptmp = new List<Point3d>();
       List<double> ztmp = new List<double>();
 
-        // i = 1 perché il primo è il bordo
-        for (int i = 1; i < param.BranchCount; i++)
+      // i = 1 perché il primo è il bordo
+      for (int i = 1; i < param.BranchCount; i++)
+      {
+
+        double fuga = Convert.ToInt64(param.Branch(i)[0].ToString().Split('-')[2].ToString().Split('.')[0]);
+        if (fuga == 0) { fuga += 0.1; }
+        string dirName = param.Branch(i)[0].ToString().Split('-')[1];
+        char dir = dirName[dirName.Length - 1];
+
+        List<Point3d> tmpP = new List<Point3d>();
+
+        if (dir == 'h')
         {
-
-          double fuga = Convert.ToInt64(param.Branch(i)[0].ToString().Split('-')[2].ToString().Split('.')[0]);
-          if (fuga == 0) { fuga += 0.1; }
-          string dirName = param.Branch(i)[0].ToString().Split('-')[1];
-          char dir = dirName[dirName.Length - 1];
-
-          List<Point3d> tmpP = new List<Point3d>();
-
-          if (dir == 'h')
+          // start at j = 1 perchè la prima entry è il nome del layer
+          for (int j = 1; j < param.Branch(i).Count; j++)
           {
-            // start at j = 1 perchè la prima entry è il nome del layer
-            for (int j = 1; j < param.Branch(i).Count; j++)
+
+            //PolylineCurve tmpPl = (PolylineCurve) param.Branch(i)[j];
+            //ztmp.Add(tmpPl.PointAt(0).Z - fuga);
+            //ztmp.Add(tmpPl.PointAt(0).Z + fuga);
+
+            var k = param.Branch(i)[j] as PolylineCurve;
+
+            if (k != null)
             {
-
-              //PolylineCurve tmpPl = (PolylineCurve) param.Branch(i)[j];
-              //ztmp.Add(tmpPl.PointAt(0).Z - fuga);
-              //ztmp.Add(tmpPl.PointAt(0).Z + fuga);
-
-              var k = param.Branch(i)[j] as PolylineCurve;
-
-              if (k != null)
-              {
-                PolylineCurve tmpPl = (PolylineCurve)param.Branch(i)[j];
-                ztmp.Add(tmpPl.PointAt(0).Z - fuga);
-                ztmp.Add(tmpPl.PointAt(0).Z + fuga);
-              }
-              else
-              {
-                LineCurve tmpPl = (LineCurve)param.Branch(i)[j];
-                ztmp.Add(tmpPl.PointAt(0).Z - fuga);
-                ztmp.Add(tmpPl.PointAt(0).Z + fuga);
-              }
+              PolylineCurve tmpPl = (PolylineCurve)param.Branch(i)[j];
+              ztmp.Add(tmpPl.PointAt(0).Z - fuga);
+              ztmp.Add(tmpPl.PointAt(0).Z + fuga);
+            }
+            else
+            {
+              LineCurve tmpPl = (LineCurve)param.Branch(i)[j];
+              ztmp.Add(tmpPl.PointAt(0).Z - fuga);
+              ztmp.Add(tmpPl.PointAt(0).Z + fuga);
             }
           }
 
-          else if (dir == 'v')
-          {
-            verticalPanelCount += param.Branch(i).Count;
-            // start at j = 1 perchè la prima entry è il nome del layer
-            for (int j = 1; j < param.Branch(i).Count; j++)
-            {
-              //PolylineCurve tmpPl = (PolylineCurve)param.Branch(i)[j];
-              //Point3d tmpPoint = tmpPl.PointAtStart;
-              //Point3d tp = new Point3d(tmpPl.PointAt(0).X, tmpPl.PointAt(0).Y, border.PointAt(0).Z);
-              //Circle c = new Circle(tp, fuga);
-              //var events = Intersection.CurveCurve(border.ToNurbsCurve(), c.ToNurbsCurve(), 0.01, 0.01);
-              //foreach (IntersectionEvent ie in events) { tmpP.Add(new Point3d(ie.PointA)); }
-
-              var k = param.Branch(i)[j] as PolylineCurve;
-
-              if (k != null)
-              {
-                PolylineCurve tmpPl = (PolylineCurve)param.Branch(i)[j];
-                Point3d tmpPoint = tmpPl.PointAtStart;
-                Point3d tp = new Point3d(tmpPl.PointAt(0).X, tmpPl.PointAt(0).Y, border.PointAt(0).Z);
-                Circle c = new Circle(tp, fuga);
-                var events = Intersection.CurveCurve(border.ToNurbsCurve(), c.ToNurbsCurve(), 0.01, 0.01);
-                foreach (IntersectionEvent ie in events) { tmpP.Add(new Point3d(ie.PointA)); }
-              }
-              else
-              {
-                LineCurve tmpPl = (LineCurve)param.Branch(i)[j];
-                Point3d tmpPoint = tmpPl.PointAtStart;
-                Point3d tp = new Point3d(tmpPl.PointAt(0).X, tmpPl.PointAt(0).Y, border.PointAt(0).Z);
-                Circle c = new Circle(tp, fuga);
-                var events = Intersection.CurveCurve(border.ToNurbsCurve(), c.ToNurbsCurve(), 0.01, 0.01);
-                foreach (IntersectionEvent ie in events) { tmpP.Add(new Point3d(ie.PointA)); }
-              }
-            }
-          }
-
-
-          ptmp.AddRange(tmpP);
+          RhinoApp.WriteLine("H");
         }
+
+        else if (dir == 'v')
+        {
+          verticalPanelCount += param.Branch(i).Count;
+          // start at j = 1 perchè la prima entry è il nome del layer
+          for (int j = 1; j < param.Branch(i).Count; j++)
+          {
+            var k = param.Branch(i)[j] as PolylineCurve;
+
+            if (k != null)
+            {
+              PolylineCurve tmpPl = (PolylineCurve)param.Branch(i)[j];
+              Point3d tmpPoint = tmpPl.PointAtStart;
+              Point3d tp = new Point3d(tmpPl.PointAt(0).X, tmpPl.PointAt(0).Y, border.PointAt(0).Z);
+              Circle c = new Circle(tp, fuga);
+              var events = Intersection.CurveCurve(border.ToNurbsCurve(), c.ToNurbsCurve(), 0.01, 0.01);
+              foreach (IntersectionEvent ie in events) { tmpP.Add(new Point3d(ie.PointA)); }
+              RhinoApp.WriteLine(events.Count.ToString());
+            }
+            else
+            {
+              LineCurve tmpPl = (LineCurve)param.Branch(i)[j];
+              Point3d tmpPoint = tmpPl.PointAt(0);
+              Point3d tp = new Point3d(tmpPl.PointAt(0).X, tmpPl.PointAt(0).Y, border.PointAt(0).Z);
+              Circle c = new Circle(tp, fuga);
+              var events = Intersection.CurveCurve(border.ToNurbsCurve(), c.ToNurbsCurve(), 0.01, 0.01);
+              foreach (IntersectionEvent ie in events) { tmpP.Add(new Point3d(ie.PointA)); }
+              RhinoApp.WriteLine(events.Count.ToString());
+            }
+          }
+
+          RhinoApp.WriteLine("V");
+        }
+
+        ptmp.AddRange(tmpP);
+      }
 
       // Sorting of Z coordinates
       ztmp.Sort();
@@ -847,7 +841,6 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
       return export;
     }
-
   }
 
   public class PanelC41
