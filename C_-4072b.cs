@@ -10,14 +10,13 @@ using Grasshopper.Kernel;
 using Grasshopper.Kernel.Data;
 using Grasshopper.Kernel.Types;
 
-using System.Linq;
 using System.Windows.Forms;
 
 
 /// <summary>
 /// This class will be instantiated on demand by the Script component.
 /// </summary>
-public abstract class Script_Instance_ff93f : GH_ScriptInstance
+public abstract class Script_Instance_4072b : GH_ScriptInstance
 {
   #region Utility functions
   /// <summary>Print a String to the [Out] Parameter of the Script component.</summary>
@@ -54,45 +53,12 @@ public abstract class Script_Instance_ff93f : GH_ScriptInstance
   /// they will have a default value.
   /// </summary>
   #region Runscript
-  private void RunScript(List<Polyline> x, List<string> y, ref object A)
+  private void RunScript(object x, object y, ref object A)
   {
-    alert.Clear();
-
-    if (x.Count == y.Count)
-    {
-      for (int i = 0; i < x.Count; i++)
-      {
-        Check(x[i], y[i]);
-      }
-    }
-
-    A = alert;
+    //EMPTY
   }
   #endregion
   #region Additional
-  // START CODE
 
-  List<Point3d> alert = new List<Point3d>();
-
-  public void Check(Polyline pl, string name)
-  {
-    string type = name.Split('|')[0];
-    double len;
-    double tolerance;
-
-    if (type.Contains('A'))
-    {
-      tolerance = 90;
-      len = pl[0].DistanceTo(pl[1]);
-      double test = len + tolerance;
-
-      if (test > 1251)
-      {
-        alert.Add(new Point3d(pl.BoundingBox.Center));
-      }
-    }
-  }
-
-  // END CODE
   #endregion
 }
