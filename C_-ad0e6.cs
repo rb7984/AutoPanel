@@ -775,14 +775,21 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         // windows up/down
         if (panels[i].crossed[0] == false && panels[i].crossed[1] == true)
         {
-          // window on the lower border
-          if (Math.Abs((panels[i].pl[0].Z - border[0].Z)) > 2) panels[i - 1].type = panels[i - 1].type.Replace("A", "KZ");
+          // window NOT on the lower border
+          if (Math.Abs(panels[i].pl[0].Z - border[0].Z) > 10)
+          {
+            panels[i - 1].type = panels[i - 1].type.Replace("A", "KZ");
+          }
 
-          panels[i + 1].type = panels[i + 1].type.Replace("A", "KZ");
+          // window NOT on the upper border
+          if (Math.Abs(panels[i].pl[2].Z - height[1].Z) > 10)
+          {
+            panels[i + 1].type = panels[i + 1].type.Replace("A", "KZ");
+          }
 
           tmp.Add(i);
         }
-        
+
         // Left side of a window
         if (panels[i].type.Contains('X'))
         {
@@ -801,7 +808,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
             panels[i].type = panels[i].type.Replace("X", "");
           }
           // check not borderUp
-          if (Math.Abs((panels[i].pl[2].Z - height[1].Z)) > 2)
+          if (Math.Abs(panels[i].pl[2].Z - height[1].Z) > 2)
           {
             if (!panels[i + 1].type.Contains('E'))
             {
@@ -820,7 +827,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         if (panels[i].type.Contains("Y"))
         {
           // check not borderDown
-          if (Math.Abs((panels[i].pl[0].Z - border[0].Z)) > 2)
+          if (Math.Abs(panels[i].pl[0].Z - border[0].Z) > 2)
           {
             if (!panels[i - 1].type.Contains('F'))
             {
@@ -828,21 +835,21 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
             }
             else
             {
-              panels[i - 1].type = panels[i - 1].type.Replace('E', 'K');
+              panels[i - 1].type = panels[i - 1].type.Replace('F', 'K');
             }
 
             panels[i].type = panels[i].type.Replace("Y", "");
           }
           // check not borderUp
-          if (Math.Abs((panels[i].pl[2].Z - height[1].Z)) > 2)
+          if (Math.Abs(panels[i].pl[2].Z - height[1].Z) > 2)
           {
             if (!panels[i + 1].type.Contains('F'))
             {
-              panels[i + 1].type = panels[i - 1].type.Replace('A', 'E');
+              panels[i + 1].type = panels[i + 1].type.Replace('A', 'E');
             }
             else
             {
-              panels[i + 1].type = panels[i - 1].type.Replace('E', 'K');
+              panels[i + 1].type = panels[i + 1].type.Replace('F', 'K');
             }
 
             panels[i].type = panels[i].type.Replace("Y", "");
@@ -861,8 +868,8 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       {
         if (panels[i].type.Contains('B'))
         {
-          //panels[i + 1].type += "*D";
-          //panels[i + 1].tin = panels[i + 1].width;
+          ///panels[i + 1].type += "*D";
+          ///panels[i + 1].tin = panels[i + 1].width;
 
           panels[i].tin = panels[i].width;
           panels[i].toExcel += "," + panels[i].width.ToString();
@@ -876,10 +883,11 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         {
           panels[i].type = panels[i].type.Replace('W', 'B');
         }
-        //if (panels[i].type.Contains('D'))
-        //{
-        //  panels[i].type = panels[i].type.Replace('D', 'B');
-        //}
+
+        ///if (panels[i].type.Contains('D'))
+        ///{
+        ///  panels[i].type = panels[i].type.Replace('D', 'B');
+        ///}
 
         // Z dalle finestre
         if (panels[i].type.Contains('Z'))
@@ -896,12 +904,12 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
           panels[i].type += "*B";
           panels[i].tin = panels[i].width;
 
-          //if (!panels[i + 1].type.Contains('B'))
-          //{
-          //  panels[i + 1].type += "*B";
-          //  panels[i + 1].tin = panels[i + 1].width;
-          //  panels[i + 1].toExcel += "," + panels[i + 1].width.ToString();
-          //}
+          ///if (!panels[i + 1].type.Contains('B'))
+          ///{
+          ///  panels[i + 1].type += "*B";
+          ///  panels[i + 1].tin = panels[i + 1].width;
+          ///  panels[i + 1].toExcel += "," + panels[i + 1].width.ToString();
+          ///}
         }
         else if (Math.Abs(panels[i].pl[3].Z - height[1].Z) < 0.01 && !panels[i].type.Contains('B'))
         {
