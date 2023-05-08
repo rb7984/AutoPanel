@@ -23,7 +23,7 @@ using System.Drawing.Printing;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Linq.Expressions;
-using System.Windows.Forms;
+//using System.Windows.Forms;
 using System.Threading;
 
 
@@ -281,9 +281,10 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
           }
 
           // Name correction (B*C)
-          if (grid[j].panels[i].type.Contains("C*B"))
+          //REPLACE B=S
+          if (grid[j].panels[i].type.Contains("C*S"))
           {
-            grid[j].panels[i].type = grid[j].panels[i].type.Replace("C*B", "B*C");
+            grid[j].panels[i].type = grid[j].panels[i].type.Replace("C*S", "S*C");
           }
 
           // SEC
@@ -293,11 +294,12 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
           BorderPanelReduction(grid[j].panels[i], j);
 
           // Name correction (*B*B)
-          int t = grid[j].panels[i].type.Count(k => k == 'B');
+          //REPLACE B=S
+          int t = grid[j].panels[i].type.Count(k => k == 'S');
           if (t > 1)
           {
-            grid[j].panels[i].type = grid[j].panels[i].type.Replace("*B", "");
-            grid[j].panels[i].type += "*B";
+            grid[j].panels[i].type = grid[j].panels[i].type.Replace("*S", "");
+            grid[j].panels[i].type += "*S";
           }
         }
       }
@@ -317,15 +319,17 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       {
         angle = (180 / Math.PI) * angle;
         angle = (360 - angle) / 2;
-        if (a == 0) return "J" + "." + Math.Round(angle).ToString();
-        else return "I" + "." + Math.Round(angle).ToString();
+        //REPLACE '.'='-'
+        if (a == 0) return "J" + "-" + Math.Round(angle).ToString();
+        else return "I" + "-" + Math.Round(angle).ToString();
       }
       else
       {
         angle = (180 / Math.PI) * angle;
         angle = (360 - angle) / 2;
-        if (a == 0) return "H" + "." + Math.Round(angle).ToString();
-        else return "G" + "." + Math.Round(angle).ToString();
+        //REPLACE '.'='-'
+        if (a == 0) return "H" + "-" + Math.Round(angle).ToString();
+        else return "G" + "-" + Math.Round(angle).ToString();
       }
     }
 
@@ -344,7 +348,8 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
         });
 
-      if (panel.type.Contains('.'))
+      //REPLACE '.'='-'
+      if (panel.type.Contains('-'))
       {
         string[] keys = new string[] { "G", "H", "I", "J" };
 
@@ -555,7 +560,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
       PostPanels(panels);
 
-      MessageBox.Show(gridnumber.ToString());
+      //MessageBox.Show(gridnumber.ToString());
     }
 
     // Assegna height e normal
@@ -761,7 +766,8 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         if (panels[i].crossed[0] == true && panels[i].crossed[1] == false)
         {
           panels[i - 1].type += "*W";
-          panels[i + 1].type += "*B";
+          //REPLACE B=S
+          panels[i + 1].type += "*S";
 
           if (panels[i].type.Contains("E") || panels[i].type.Contains("F") || panels[i].type.Contains("J") || panels[i].type.Contains("I") || panels[i].type.Contains("K"))
           {
@@ -866,7 +872,8 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       // All panels
       for (int i = 0; i < panels.Count - 1; i++)
       {
-        if (panels[i].type.Contains('B'))
+        //REPLACE B=S
+        if (panels[i].type.Contains('S'))
         {
           ///panels[i + 1].type += "*D";
           ///panels[i + 1].tin = panels[i + 1].width;
@@ -881,7 +888,8 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         // W dai Pavement
         if (panels[i].type.Contains('W'))
         {
-          panels[i].type = panels[i].type.Replace('W', 'B');
+          //REPLACE B=S
+          panels[i].type = panels[i].type.Replace('W', 'S');
         }
 
         ///if (panels[i].type.Contains('D'))
@@ -892,16 +900,18 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         // Z dalle finestre
         if (panels[i].type.Contains('Z'))
         {
-          panels[i].type = panels[i].type.Replace("Z", "*B");
+          //REPLACE B=S
+          panels[i].type = panels[i].type.Replace("Z", "*S");
         }
       }
 
       // BorderUp and BorderDown
       for (int i = 0; i < panels.Count; i++)
       {
-        if (Math.Abs(panels[i].pl[0].Z - height[0].Z) < 0.01 && !panels[i].type.Contains('B'))
+        //REPLACE B=S
+        if (Math.Abs(panels[i].pl[0].Z - height[0].Z) < 0.01 && !panels[i].type.Contains('S'))
         {
-          panels[i].type += "*B";
+          panels[i].type += "*S";
           panels[i].tin = panels[i].width;
 
           ///if (!panels[i + 1].type.Contains('B'))
@@ -911,9 +921,10 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
           ///  panels[i + 1].toExcel += "," + panels[i + 1].width.ToString();
           ///}
         }
-        else if (Math.Abs(panels[i].pl[3].Z - height[1].Z) < 0.01 && !panels[i].type.Contains('B'))
+        //REPLACE B=S
+        else if (Math.Abs(panels[i].pl[3].Z - height[1].Z) < 0.01 && !panels[i].type.Contains('S'))
         {
-          panels[i].type += "*B";
+          panels[i].type += "*S";
           panels[i].tin = panels[i].width;
         }
       }
@@ -944,11 +955,14 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       List<string> types = new List<string>();
       foreach (PanelC41 panel in panels)
       {
-        string[] type = panel.type.Split('.');
+        //REPLACE '.'='-'
+        string[] type = panel.type.Split('-');
         var adding = type[0];
-        if (type.Length > 1 && type[1].Contains('B'))
+
+        //REPLACE B=S
+        if (type.Length > 1 && type[1].Contains('S'))
         {
-          adding += "*B";
+          adding += "*S";
         }
         if (type.Length > 1 && type[1].Contains('C'))
         {
@@ -1040,7 +1054,8 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
           if (wall[j] == 1)
           {
             crossed = InterceptedPanelVertical(obs.Branch(4), j, 0);
-            type = type.Replace('W', 'B');
+            //REPLACE B=S
+            type = type.Replace('W', 'S');
           }
           if (wall[j] == 2) crossed = InterceptedPanelHorizontal(obs.Branch(4), j, 0, true);
         }
@@ -1164,8 +1179,8 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
     public bool[] InterceptedPanelHorizontal(List<Polyline> obs, int i, double fuga, bool wall)
     {
-      // wall = false: per rettangoli orizzontali centrati sui pannelli
       // wall = true: rettangoli alti più di un pannello
+      // wall = false: per rettangoli orizzontali centrati sui pannelli
       // Viene considerata solo distanza X-Y
 
       List<Point3d> p = new List<Point3d> { pl[0], pl[1] };
@@ -1357,7 +1372,8 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         else if (horizontalIntersection && verticalIntersection)
         {
           result[i] = 3;
-          type += "*B*C";
+          //REPLACE B=S
+          type += "*S*C";
         }
       }
 
@@ -1405,7 +1421,8 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
       if (counter != 0)
       {
-        type += "*B";
+        // REPLACE B=S
+        type += "*S";
       }
     }
 
@@ -1432,7 +1449,8 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
   public List<string> ArchiveTypes(List<PanelC41> panelC41s)
   {
-    List<string> list = panelC41s.Select(x => Regex.Replace(x.type, @"[\d.]", String.Empty)).ToList();
+    //REPLACE '.'='-'
+    List<string> list = panelC41s.Select(x => Regex.Replace(x.type, @"[\d-]", String.Empty)).ToList();
 
     list = list.Distinct().ToList();
 
