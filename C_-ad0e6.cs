@@ -22,8 +22,8 @@ using System.ComponentModel;
 using System.Drawing.Printing;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Windows.Forms;
 using System.Linq.Expressions;
-//using System.Windows.Forms;
 using System.Threading;
 
 
@@ -71,39 +71,40 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
   {
     Stopwatch sw = Stopwatch.StartNew();
     sw.Start();
+    
 
-    facade = new Facade(x, y, z, u);
+      facade = new Facade(x, y, z, u);
 
-    panelC41s = new List<PanelC41>();
-    plines = new DataTree<Polyline>();
-    this.archive = new List<string>();
-    this.names = new DataTree<string>();
-    types = new DataTree<string>();
-    toExport = new List<string> { "Type,Width,Heigh,Marca,Facciata,Tin,TinH,Sec" };
-    normals = new List<Vector3d>();
+      panelC41s = new List<PanelC41>();
+      plines = new DataTree<Polyline>();
+      this.archive = new List<string>();
+      this.names = new DataTree<string>();
+      types = new DataTree<string>();
+      toExport = new List<string> { "Type,Width,Heigh,Marca,Facciata,Tin,TinH,Sec" };
+      normals = new List<Vector3d>();
 
-    foreach (Grid3d grid in facade.grids)
-    {
-      int i = facade.grids.IndexOf(grid);
-      panelC41s.AddRange(grid.panels);
-      plines.AddRange(grid.Plines(grid.panels), new GH_Path(i));
-      types.AddRange(grid.TypeTags(grid.panels), new GH_Path(i));
-      this.names.AddRange(grid.NameTags(grid.panels), new GH_Path(i));
-      toExport.AddRange(grid.ToExport(grid.panels));
-      normals.Add(grid.normal);
-    }
+      foreach (Grid3d grid in facade.grids)
+      {
+        int i = facade.grids.IndexOf(grid);
+        panelC41s.AddRange(grid.panels);
+        plines.AddRange(grid.Plines(grid.panels), new GH_Path(i));
+        types.AddRange(grid.TypeTags(grid.panels), new GH_Path(i));
+        this.names.AddRange(grid.NameTags(grid.panels), new GH_Path(i));
+        toExport.AddRange(grid.ToExport(grid.panels));
+        normals.Add(grid.normal);
+      }
 
-    this.archive.AddRange(ArchiveTypes(panelC41s));
+      this.archive.AddRange(ArchiveTypes(panelC41s));
 
-    B = facade.baseLines;
-    A = facade.angles;
-    baselines = facade.baseLines;
-    pl = plines;
-    layerNames = types;
-    names = this.names;
-    archive = this.archive;
-    export = toExport;
-    normalVectors = normals;
+      B = facade.baseLines;
+      A = facade.angles;
+      baselines = facade.baseLines;
+      pl = plines;
+      layerNames = types;
+      names = this.names;
+      archive = this.archive;
+      export = toExport;
+      normalVectors = normals;
 
     sw.Stop();
     //MessageBox.Show(sw.ElapsedMilliseconds.ToString());
@@ -243,7 +244,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
       for (int j = 0; j < grid.Count; j++)
       {
-        List<Polyline> secs = sec.Branch(j).Select(p => (PolylineCurve)p).ToList().Select(pp => pp.ToPolyline()).ToList();
+        List<Polyline> secs = sec.Branch(j).Select(p => (PolylineCurve) p).ToList().Select(pp => pp.ToPolyline()).ToList();
 
         for (int i = 0; i < grid[j].panels.Count; i++)
         {
@@ -314,7 +315,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         if (a == 0) return "E";
         else return "F";
       }
-      // I and J Panels
+        // I and J Panels
       else if (grids[i].monopanel)
       {
         angle = (180 / Math.PI) * angle;
@@ -339,12 +340,12 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
       var reduce = new Action<PanelC41, int, int>((panelPass, reduction, leftRight) =>
         {
-          Point3d tmpPoint = panel.pl[leftRight];
-          Circle c = new Circle(tmpPoint, reduction);
+        Point3d tmpPoint = panel.pl[leftRight];
+        Circle c = new Circle(tmpPoint, reduction);
 
-          var events = Intersection.CurveCurve(panel.pl.ToNurbsCurve(), c.ToNurbsCurve(), 0.01, 0.01);
+        var events = Intersection.CurveCurve(panel.pl.ToNurbsCurve(), c.ToNurbsCurve(), 0.01, 0.01);
 
-          p = new Point3d(events[0].PointA);
+        p = new Point3d(events[0].PointA);
 
         });
 
@@ -369,13 +370,13 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
               reduce(panel, 12, 1);
 
               List<Point3d> list = new List<Point3d>
-              {
+                {
                   panel.pl[0],
                   p,
                   new Point3d(p.X, p.Y, panel.pl[2].Z),
                   panel.pl[3],
                   panel.pl[0]
-              };
+                  };
 
               panel.pl = new Polyline(list);
             }
@@ -384,13 +385,13 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
               reduce(panel, 10, 1);
 
               List<Point3d> list = new List<Point3d>
-              {
+                {
                   panel.pl[0],
                   p,
                   new Point3d(p.X, p.Y, panel.pl[2].Z),
                   panel.pl[3],
                   panel.pl[0]
-              };
+                  };
 
               panel.pl = new Polyline(list);
             }
@@ -513,7 +514,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       this.border = border;
 
       for (int i = 0; i < y.BranchCount; i++)
-      { obs.AddRange(y.Branch(i).Select(pl => (PolylineCurve)pl).ToList().Select(pl => pl.ToPolyline()).ToList(), new GH_Path(i)); }
+      { obs.AddRange(y.Branch(i).Select(pl => (PolylineCurve) pl).ToList().Select(pl => pl.ToPolyline()).ToList(), new GH_Path(i)); }
 
       Borders(x.Branch(0)[1], ax);
 
@@ -541,7 +542,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       this.border = border;
 
       for (int i = 0; i < y.BranchCount; i++)
-      { obs.AddRange(y.Branch(i).Select(pl => (PolylineCurve)pl).ToList().Select(pl => pl.ToPolyline()).ToList(), new GH_Path(i)); }
+      { obs.AddRange(y.Branch(i).Select(pl => (PolylineCurve) pl).ToList().Select(pl => pl.ToPolyline()).ToList(), new GH_Path(i)); }
 
       Borders(x.Branch(0)[1], ax);
 
@@ -566,7 +567,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
     // Assegna height e normal
     public void Borders(object a, Vector3d vector)
     {
-      PolylineCurve p = (PolylineCurve)a;
+      PolylineCurve p = (PolylineCurve) a;
       Polyline tmpPl = p.ToPolyline();
       List<Point3d> list = tmpPl.Select(point => point).ToList();
       list.RemoveAt(list.Count - 1);
@@ -604,13 +605,13 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
             if (k != null)
             {
-              PolylineCurve tmpPl = (PolylineCurve)param.Branch(i)[j];
+              PolylineCurve tmpPl = (PolylineCurve) param.Branch(i)[j];
               ztmp.Add(tmpPl.PointAt(0).Z - fuga);
               ztmp.Add(tmpPl.PointAt(0).Z + fuga);
             }
             else
             {
-              LineCurve tmpPl = (LineCurve)param.Branch(i)[j];
+              LineCurve tmpPl = (LineCurve) param.Branch(i)[j];
               ztmp.Add(tmpPl.PointAt(0).Z - fuga);
               ztmp.Add(tmpPl.PointAt(0).Z + fuga);
             }
@@ -628,7 +629,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
 
             if (k != null)
             {
-              PolylineCurve tmpPl = (PolylineCurve)param.Branch(i)[j];
+              PolylineCurve tmpPl = (PolylineCurve) param.Branch(i)[j];
               Point3d tmpPoint = tmpPl.PointAtStart;
               Point3d tp = new Point3d(tmpPl.PointAt(0).X, tmpPl.PointAt(0).Y, border.PointAt(0).Z);
               Circle c = new Circle(tp, fuga);
@@ -637,7 +638,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
             }
             else
             {
-              LineCurve tmpPl = (LineCurve)param.Branch(i)[j];
+              LineCurve tmpPl = (LineCurve) param.Branch(i)[j];
               Point3d tmpPoint = tmpPl.PointAt(0);
               Point3d tp = new Point3d(tmpPl.PointAt(0).X, tmpPl.PointAt(0).Y, border.PointAt(0).Z);
               Circle c = new Circle(tp, fuga);
@@ -659,6 +660,8 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       double[] t = new double[] { height[0].Z, height[1].Z };
       ztmp.Insert(0, t.Min());
       ztmp.Add(t.Max());
+      //      MessageBox.Show(ztmp.Count.ToString());
+      //      MessageBox.Show(ptmp.Count.ToString());
 
       zCoordinates = ztmp;
 
@@ -921,7 +924,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
           ///  panels[i + 1].toExcel += "," + panels[i + 1].width.ToString();
           ///}
         }
-        //REPLACE B=S
+          //REPLACE B=S
         else if (Math.Abs(panels[i].pl[3].Z - height[1].Z) < 0.01 && !panels[i].type.Contains('S'))
         {
           panels[i].type += "*S";
@@ -1139,7 +1142,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       {
         return new bool[] { false, true };
       }
-      //pannelli intersecati sotto
+        //pannelli intersecati sotto
       else if (z.Max() > zObs.Max())
       {
         double newZ = zObs.Max();
@@ -1156,7 +1159,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         if (!type.Contains('W')) type += "*W";
         return new bool[] { false, false };
       }
-      //pannelli intersecati sopra
+        //pannelli intersecati sopra
       else if (z.Min() < zObs.Min())
       {
         double newZ = zObs.Min();
@@ -1206,13 +1209,13 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         if (c && d)
         {
           List<Point3d> tmp = new List<Point3d>()
-          {
-            new Point3d(pl[0]),
-            new Point3d(pObs[0].X, pObs[0].Y, pl[1].Z),
-            new Point3d(pObs[0].X, pObs[0].Y, pl[2].Z),
-            new Point3d(pl[3]),
-            new Point3d(pl[4])
-            };
+            {
+              new Point3d(pl[0]),
+              new Point3d(pObs[0].X, pObs[0].Y, pl[1].Z),
+              new Point3d(pObs[0].X, pObs[0].Y, pl[2].Z),
+              new Point3d(pl[3]),
+              new Point3d(pl[4])
+              };
 
           pl = new Polyline(tmp);
 
@@ -1222,13 +1225,13 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         else if (a && b)
         {
           List<Point3d> tmp = new List<Point3d>()
-          {
-            new Point3d(pObs[1].X, pObs[1].Y, pl[0].Z),
-            new Point3d(pl[1]),
-            new Point3d(pl[2]),
-            new Point3d(pObs[1].X, pObs[1].Y, pl[3].Z),
-            new Point3d(pObs[1].X, pObs[1].Y, pl[4].Z)
-            };
+            {
+              new Point3d(pObs[1].X, pObs[1].Y, pl[0].Z),
+              new Point3d(pl[1]),
+              new Point3d(pl[2]),
+              new Point3d(pObs[1].X, pObs[1].Y, pl[3].Z),
+              new Point3d(pObs[1].X, pObs[1].Y, pl[4].Z)
+              };
 
           pl = new Polyline(tmp);
         }
@@ -1238,13 +1241,13 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         if (!leftObs && (c && d))
         {
           List<Point3d> tmp = new List<Point3d>()
-          {
-            new Point3d(pl[0]),
-            new Point3d(pObs[0].X, pObs[0].Y, pl[1].Z),
-            new Point3d(pObs[0].X, pObs[0].Y, pl[2].Z),
-            new Point3d(pl[3]),
-            new Point3d(pl[4])
-            };
+            {
+              new Point3d(pl[0]),
+              new Point3d(pObs[0].X, pObs[0].Y, pl[1].Z),
+              new Point3d(pObs[0].X, pObs[0].Y, pl[2].Z),
+              new Point3d(pl[3]),
+              new Point3d(pl[4])
+              };
 
           pl = new Polyline(tmp);
 
@@ -1254,13 +1257,13 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         else if (leftObs && a && b)
         {
           List<Point3d> tmp = new List<Point3d>()
-          {
-            new Point3d(pObs[1].X, pObs[1].Y, pl[0].Z),
-            new Point3d(pl[1]),
-            new Point3d(pl[2]),
-            new Point3d(pObs[1].X, pObs[1].Y, pl[3].Z),
-            new Point3d(pObs[1].X, pObs[1].Y, pl[4].Z)
-            };
+            {
+              new Point3d(pObs[1].X, pObs[1].Y, pl[0].Z),
+              new Point3d(pl[1]),
+              new Point3d(pl[2]),
+              new Point3d(pObs[1].X, pObs[1].Y, pl[3].Z),
+              new Point3d(pObs[1].X, pObs[1].Y, pl[4].Z)
+              };
 
           pl = new Polyline(tmp);
         }
