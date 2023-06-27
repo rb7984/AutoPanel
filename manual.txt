@@ -13,3 +13,4 @@ Obstacles:
 
 baseline:
 > polylines have to be drawn and referenced by hand. Draw them in reverse order (Rhino remembers the last)
+> if the polylines are changed, the order has to be restored
