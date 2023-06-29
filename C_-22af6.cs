@@ -10,13 +10,14 @@ using Grasshopper.Kernel;
 using Grasshopper.Kernel.Data;
 using Grasshopper.Kernel.Types;
 
-using System.Windows.Forms;
+using System.Linq;
+using Rhino.UI;
 
 
 /// <summary>
 /// This class will be instantiated on demand by the Script component.
 /// </summary>
-public abstract class Script_Instance_4072b : GH_ScriptInstance
+public abstract class Script_Instance_22af6 : GH_ScriptInstance
 {
   #region Utility functions
   /// <summary>Print a String to the [Out] Parameter of the Script component.</summary>
@@ -53,12 +54,40 @@ public abstract class Script_Instance_4072b : GH_ScriptInstance
   /// they will have a default value.
   /// </summary>
   #region Runscript
-  private void RunScript(object x, object y, ref object A)
+  private void RunScript(Brep containers, DataTree<Curve> pl, DataTree<string> layerNames, DataTree<string> names, DataTree<string> export, ref object A, ref object B, ref object C, ref object D)
   {
-    //EMPTY
+    Check(containers, pl, layerNames, names, export);
+    A = pl;
+    B = layerNames;
+    C = names;
+    D = export;
   }
   #endregion
   #region Additional
+  public void Check(Brep container, DataTree<Curve> pl, DataTree<string> layerNames, DataTree<string> names, DataTree<string> export)
+  {
+    for (int i = 0; i < pl.BranchCount; i++)
+    {
+      List<int> remove = new List<int>();
+      for (int j = 0; j < pl.Branch(i).Count; j++)
+      {
+        bool inside = container.IsPointInside(pl.Branch(i)[j].GetBoundingBox(true).Center, 1, true);
+        if (!inside)
+        {
+          remove.Add(j);
+        }
+      }
 
+      remove = remove.OrderByDescending(x => x).ToList();
+
+      for (int j = 0; j < remove.Count; j++)
+      {
+        pl.Branch(i).RemoveAt(remove[j]);
+        layerNames.Branch(i).RemoveAt(remove[j]);
+        names.Branch(i).RemoveAt(remove[j]);
+        export.Branch(i).RemoveAt(remove[j]);
+      }
+    }
+  }
   #endregion
 }

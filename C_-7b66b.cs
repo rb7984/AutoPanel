@@ -10,12 +10,13 @@ using Grasshopper.Kernel;
 using Grasshopper.Kernel.Data;
 using Grasshopper.Kernel.Types;
 
+using System.Linq;
 
 
 /// <summary>
 /// This class will be instantiated on demand by the Script component.
 /// </summary>
-public abstract class Script_Instance_5258e : GH_ScriptInstance
+public abstract class Script_Instance_7b66b : GH_ScriptInstance
 {
   #region Utility functions
   /// <summary>Print a String to the [Out] Parameter of the Script component.</summary>
@@ -52,12 +53,28 @@ public abstract class Script_Instance_5258e : GH_ScriptInstance
   /// they will have a default value.
   /// </summary>
   #region Runscript
-  private void RunScript(bool trig, List<Brep> x, DataTree<Curve> y, DataTree<string> z, ref object A, ref object B)
+  private void RunScript(DataTree<object> x, List<Polyline> y, List<Vector3d> z, ref object A, ref object B)
   {
-    if (trig)
-    {
+    List<int> remove = new List<int>();
 
+    for (int i = 0; i < x.BranchCount; i++)
+    {
+      if (x.Branch(i).Count == 0)
+      {
+        remove.Add(i);
+      }
     }
+
+    remove = remove.OrderByDescending(index => index).ToList();
+
+    for (int j = 0; j < remove.Count; j++)
+    {
+      y.RemoveAt(remove[j]);
+      z.RemoveAt(remove[j]);
+    }
+
+    A = y;
+    B = z;
   }
   #endregion
   #region Additional

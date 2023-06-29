@@ -67,44 +67,46 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
   /// they will have a default value.
   /// </summary>
   #region Runscript
-  private void RunScript(DataTree<object> x, DataTree<object> y, List<Polyline> z, DataTree<object> u, ref object B, ref object A, ref object baselines, ref object pl, ref object layerNames, ref object names, ref object archive, ref object freeTag, ref object export, ref object normalVectors)
+  private void RunScript(DataTree<object> x, DataTree<object> y, List<Polyline> z, DataTree<object> u, ref object A, ref object baselines, ref object pl, ref object layerNames, ref object names, ref object archive, ref object export, ref object exportTree, ref object normalVectors)
   {
     Stopwatch sw = Stopwatch.StartNew();
     sw.Start();
-    
 
-      facade = new Facade(x, y, z, u);
 
-      panelC41s = new List<PanelC41>();
-      plines = new DataTree<Polyline>();
-      this.archive = new List<string>();
-      this.names = new DataTree<string>();
-      types = new DataTree<string>();
-      toExport = new List<string> { "Type,Width,Heigh,Marca,Facciata,Tin,TinH,Sec" };
-      normals = new List<Vector3d>();
+    facade = new Facade(x, y, z, u);
 
-      foreach (Grid3d grid in facade.grids)
-      {
-        int i = facade.grids.IndexOf(grid);
-        panelC41s.AddRange(grid.panels);
-        plines.AddRange(grid.Plines(grid.panels), new GH_Path(i));
-        types.AddRange(grid.TypeTags(grid.panels), new GH_Path(i));
-        this.names.AddRange(grid.NameTags(grid.panels), new GH_Path(i));
-        toExport.AddRange(grid.ToExport(grid.panels));
-        normals.Add(grid.normal);
-      }
+    panelC41s = new List<PanelC41>();
+    plines = new DataTree<Polyline>();
+    this.archive = new List<string>();
+    this.names = new DataTree<string>();
+    types = new DataTree<string>();
+    toExport = new List<string> { "Type,Width,Heigh,Marca,Facciata,Tin,TinH,Sec" };
+    toExportTree = new DataTree<string>();
+    normals = new List<Vector3d>();
 
-      this.archive.AddRange(ArchiveTypes(panelC41s));
+    foreach (Grid3d grid in facade.grids)
+    {
+      int i = facade.grids.IndexOf(grid);
+      panelC41s.AddRange(grid.panels);
+      plines.AddRange(grid.Plines(grid.panels), new GH_Path(i));
+      types.AddRange(grid.TypeTags(grid.panels), new GH_Path(i));
+      this.names.AddRange(grid.NameTags(grid.panels), new GH_Path(i));
+      toExport.AddRange(grid.ToExport(grid.panels));
+      toExportTree.AddRange(grid.ToExport(grid.panels), new GH_Path(i));
+      normals.Add(grid.normal);
+    }
 
-      B = facade.baseLines;
-      A = facade.angles;
-      baselines = facade.baseLines;
-      pl = plines;
-      layerNames = types;
-      names = this.names;
-      archive = this.archive;
-      export = toExport;
-      normalVectors = normals;
+    this.archive.AddRange(ArchiveTypes(panelC41s));
+
+    A = facade.angles;
+    baselines = facade.baseLines;
+    pl = plines;
+    layerNames = types;
+    names = this.names;
+    archive = this.archive;
+    export = toExport;
+    exportTree = toExportTree;
+    normalVectors = normals;
 
     sw.Stop();
     //MessageBox.Show(sw.ElapsedMilliseconds.ToString());
@@ -119,6 +121,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
   public DataTree<string> names;
   public DataTree<string> types;
   public List<string> toExport;
+  public DataTree<string> toExportTree;
   public List<Vector3d> normals;
 
   public List<string> archive;
@@ -781,6 +784,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
             tmp.Add(i);
           }
         }
+
         // windows up/down
         if (panels[i].crossed[0] == false && panels[i].crossed[1] == true)
         {
@@ -924,11 +928,12 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
           ///  panels[i + 1].toExcel += "," + panels[i + 1].width.ToString();
           ///}
         }
-          //REPLACE B=S
+
+        //REPLACE B=S
         else if (Math.Abs(panels[i].pl[3].Z - height[1].Z) < 0.01 && !panels[i].type.Contains('S'))
         {
           panels[i].type += "*S";
-          panels[i].tin = panels[i].width;
+          panels[i].tin = 0; //panels[i].width;
         }
       }
     }
@@ -1059,6 +1064,8 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
             crossed = InterceptedPanelVertical(obs.Branch(4), j, 0);
             //REPLACE B=S
             type = type.Replace('W', 'S');
+            //Tin above obstacles //20230629
+            tin = pl[1].DistanceTo(pl[0]);
           }
           if (wall[j] == 2) crossed = InterceptedPanelHorizontal(obs.Branch(4), j, 0, true);
         }
