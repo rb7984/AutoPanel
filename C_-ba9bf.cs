@@ -113,7 +113,10 @@ public abstract class Script_Instance_ba9bf : GH_ScriptInstance
             TextEntity t = new TextEntity
             {
               PlainText = names.Branch(i)[j],
-              Plane = textLocations.Branch(i)[j]
+              Plane = textLocations.Branch(i)[j],
+              // 20230630
+              TextHeight = 40,
+              Justification = TextJustification.MiddleCenter
             };
 
             var a = plines.Branch(i)[j]; a.Transform(cb);
@@ -142,11 +145,14 @@ public abstract class Script_Instance_ba9bf : GH_ScriptInstance
 
           if (grouped)
           {
-            TextEntity name = new TextEntity();
-            name.PlainText = i.ToString();
-            name.Justification = TextJustification.Center;
-            name.Plane = new Plane(new Point3d(trackingOrigin.X - 2000 - (baseLines[i].Length * 0.5), trackingOrigin.Y - 2000, trackingOrigin.Z),
-              cpOrigin.Plane.Normal);
+            TextEntity name = new TextEntity
+            {
+              PlainText = plines.Path(i).Indices[0].ToString(), // 20230630 i.ToString(),
+              Justification = TextJustification.MiddleCenter,
+              TextHeight = 500,
+              Plane = new Plane(new Point3d(trackingOrigin.X - 2000 - (baseLines[i].Length * 0.5), trackingOrigin.Y - 2000, trackingOrigin.Z),
+              cpOrigin.Plane.Normal)
+            };
 
             RhinoDocument.Objects.Add(name, textAttribute);
           }

@@ -261,8 +261,8 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
             if (grid[j].panels[i].type.Contains('F') || grid[j].panels[i].type.Contains('E'))
             {
               grid[j].panels[i].type = grid[j].panels[i].type.Replace("E", "K");
-
             }
+
             else { grid[j].panels[i].type = grid[j].panels[i].type.Replace("A", nn); }
           }
 
@@ -274,6 +274,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
             {
               grid[j].panels[i].type = grid[j].panels[i].type.Replace("E", "K");
             }
+
             else { grid[j].panels[i].type = grid[j].panels[i].type.Replace("A", nn); }
           }
 
@@ -304,6 +305,12 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
           {
             grid[j].panels[i].type = grid[j].panels[i].type.Replace("*S", "");
             grid[j].panels[i].type += "*S";
+          }
+
+          // 20230630 cambia per il foro
+          if (grid[j].panels[i].tinH != 0)
+          {
+            grid[j].panels[i].type += "*B";
           }
         }
       }
@@ -916,6 +923,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
       for (int i = 0; i < panels.Count; i++)
       {
         //REPLACE B=S
+        //BorderDown
         if (Math.Abs(panels[i].pl[0].Z - height[0].Z) < 0.01 && !panels[i].type.Contains('S'))
         {
           panels[i].type += "*S";
@@ -930,6 +938,7 @@ public abstract class Script_Instance_ad0e6 : GH_ScriptInstance
         }
 
         //REPLACE B=S
+        //BorderUp
         else if (Math.Abs(panels[i].pl[3].Z - height[1].Z) < 0.01 && !panels[i].type.Contains('S'))
         {
           panels[i].type += "*S";
