@@ -56,7 +56,7 @@ public abstract class Script_Instance_ba9bf : GH_ScriptInstance
   /// they will have a default value.
   /// </summary>
   #region Runscript
-  private void RunScript(bool grouped, bool bake, DataTree<GeometryBase> plines, DataTree<string> layerNames, DataTree<string> names, DataTree<Plane> textLocations, string savingPath, List<Polyline> baseLines, DataTree<Polyline> pl, ref object A)
+  private void RunScript(bool grouped, string groupedName, bool bake, DataTree<GeometryBase> plines, DataTree<string> layerNames, DataTree<string> names, DataTree<Plane> textLocations, string savingPath, List<Polyline> baseLines, DataTree<Polyline> pl, ref object A)
   {
     try
     {
@@ -83,9 +83,9 @@ public abstract class Script_Instance_ba9bf : GH_ScriptInstance
           if (grouped)
           {
             cpOrigin = new ConstructionPlane
-            {
-              Plane = new Plane(trackingOrigin, doc.Views.ActiveView.ActiveViewport.GetConstructionPlane().Plane.Normal)
-            };
+              {
+                Plane = new Plane(trackingOrigin, doc.Views.ActiveView.ActiveViewport.GetConstructionPlane().Plane.Normal)
+                };
 
             trackingOrigin = new Point3d(trackingOrigin.X + baseLines[i].Length + 2000, trackingOrigin.Y, trackingOrigin.Z);
           }
@@ -111,13 +111,13 @@ public abstract class Script_Instance_ba9bf : GH_ScriptInstance
             plineAtt.LayerIndex = doc.Layers.FindName(layerNames.Branch(i)[j]).Index;
 
             TextEntity t = new TextEntity
-            {
-              PlainText = names.Branch(i)[j],
-              Plane = textLocations.Branch(i)[j],
-              // 20230630
-              TextHeight = 40,
-              Justification = TextJustification.MiddleCenter
-            };
+              {
+                PlainText = names.Branch(i)[j],
+                Plane = textLocations.Branch(i)[j],
+                // 20230630
+                TextHeight = 40,
+                Justification = TextJustification.MiddleCenter
+                };
 
             var a = plines.Branch(i)[j]; a.Transform(cb);
             var b = t; b.Transform(cb);
@@ -146,13 +146,13 @@ public abstract class Script_Instance_ba9bf : GH_ScriptInstance
           if (grouped)
           {
             TextEntity name = new TextEntity
-            {
-              PlainText = plines.Path(i).Indices[0].ToString(), // 20230630 i.ToString(),
-              Justification = TextJustification.MiddleCenter,
-              TextHeight = 500,
-              Plane = new Plane(new Point3d(trackingOrigin.X - 2000 - (baseLines[i].Length * 0.5), trackingOrigin.Y - 2000, trackingOrigin.Z),
-              cpOrigin.Plane.Normal)
-            };
+              {
+                PlainText = plines.Path(i).Indices[0].ToString(), // 20230630 i.ToString(),
+                Justification = TextJustification.MiddleCenter,
+                TextHeight = 500,
+                Plane = new Plane(new Point3d(trackingOrigin.X - 2000 - (baseLines[i].Length * 0.5), trackingOrigin.Y - 2000, trackingOrigin.Z),
+                cpOrigin.Plane.Normal)
+                };
 
             RhinoDocument.Objects.Add(name, textAttribute);
           }
@@ -161,7 +161,11 @@ public abstract class Script_Instance_ba9bf : GH_ScriptInstance
         if (grouped)
         {
           RhinoApp.RunScript("-SelAll", false);
-          string path = savingPath + "/" + "total" + ".dwg";
+          string path = savingPath;
+          if(groupedName.Length != 0)
+          { path += "/" + "grouped" + groupedName + ".dwg";}
+          else
+          { path += "/" + "total" + ".dwg";}
 
           RhinoApp.RunScript("-Export " + path + " " + "Enter ", false);
           RhinoApp.RunScript("-SelAll", false);
