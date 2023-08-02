@@ -115,7 +115,7 @@ public abstract class Script_Instance_ba9bf : GH_ScriptInstance
                 PlainText = names.Branch(i)[j],
                 Plane = textLocations.Branch(i)[j],
                 // 20230630
-                TextHeight = 40,
+                TextHeight = 80,
                 Justification = TextJustification.MiddleCenter
                 };
 
